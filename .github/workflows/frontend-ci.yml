@@ -20,6 +20,11 @@ jobs:
   build-test:
     name: Build e teste do frontend
     runs-on: ubuntu-latest
+    # Guarda: enquanto o frontend não existir, o job é pulado (skip) em vez de
+    # falhar com 'No such file or directory'. Quando o frontend Angular for
+    # criado (frontend/package.json passar a existir), remova esta condição
+    # para o job voltar a executar de verdade.
+    if: hashFiles('frontend/package.json') != ''
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,9 +33,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'
-          # Ajustar quando o frontend real existir (caminho do lockfile).
-          cache: ${{ hashFiles('frontend/package-lock.json') != '' && 'npm' || null }}
-          cache-dependency-path: 'frontend/package-lock.json'
+          # Ajustar quando o frontend real existir: descomente o cache e
+          # aponte para o lockfile do projeto.
+          # cache: 'npm'
+          # cache-dependency-path: 'frontend/package-lock.json'
 
       - name: Install dependencies
         working-directory: frontend
