@@ -1,0 +1,22 @@
+<section class="recent card card--padded">
+  <header class="recent__head">
+    <span class="mono-label">Histórico recente</span>
+  </header>
+  <ul class="recent__list">
+    @for (m of matches(); track m.id) {
+      <li class="recent__item">
+        <span
+          [class]="m.result === 'win' ? 'badge badge--positive' : 'badge badge--negative'"
+        >
+          {{ m.result === 'win' ? 'Vitória' : 'Derrota' }}
+        </span>
+        <span class="recent__champ">{{ m.champion }}</span>
+        <span class="recent__kda">{{ m.kda }} <em>KDA</em></span>
+        <span class="recent__meta">{{ m.cs }} CS · {{ m.durationMinutes }} min</span>
+        <time class="recent__date" [attr.datetime]="m.playedAt">
+          {{ m.playedAt | date: 'dd/MM HH:mm' }}
+        </time>
+      </li>
+    }
+  </ul>
+</section>
