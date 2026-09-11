@@ -55,3 +55,23 @@ AGENTS.md
 6. 006-ai-coach
 
 A IA não deve analisar diretamente o JSON bruto da Riot. Primeiro normalize os dados, calcule métricas e gere insights determinísticos; somente então use um LLM para explicar os resultados.
+
+## Git Flow
+
+Modelo de branching do repositório:
+
+- `main` — produção. Recebe apenas merges de `homologacao` (releases prontas para deploy).
+- `homologacao` — homologação. Integra `develop` quando o conjunto de features está pronto para validação.
+- `develop` — integração contínua. **Branch default** do repositório.
+- `feat/NNN-nome` — feature branches, sempre criadas a partir de `develop`.
+
+Fluxo de uma feature:
+
+```bash
+git checkout develop
+git checkout -b feat/001-minha-feature
+# ... desenvolvimento ...
+git push -u origin feat/001-minha-feature
+```
+
+Ao concluir, a feature é integrada de volta a `develop` via pull request. `main` e `homologacao` não recebem commits diretos.
