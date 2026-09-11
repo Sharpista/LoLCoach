@@ -29,7 +29,7 @@ jobs:
         with:
           node-version: 'lts/*'
           # Ajustar quando o frontend real existir (caminho do lockfile).
-          cache: 'npm'
+          cache: ${{ hashFiles('frontend/package-lock.json') != '' && 'npm' || null }}
           cache-dependency-path: 'frontend/package-lock.json'
 
       - name: Install dependencies
