@@ -20,16 +20,16 @@ jobs:
   build-test:
     name: Build e teste do frontend
     runs-on: ubuntu-latest
-    # Guarda: enquanto o frontend não existir, o job é pulado (skip) em vez de
-    # falhar com 'No such file or directory'. Quando o frontend Angular for
-    # criado (frontend/package.json passar a existir), remova esta condição
-    # para o job voltar a executar de verdade.
-    if: hashFiles('frontend/package.json') != ''
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Guarda: enquanto o frontend não existir, os passos abaixo são pulados
+      # (skip) em vez de falhar com 'No such file or directory'. Quando o
+      # frontend Angular for criado (frontend/package.json passar a existir),
+      # remova estas condições 'if' para os passos executarem de verdade.
       - name: Setup Node.js (LTS)
+        if: hashFiles('frontend/package.json') != ''
         uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'
@@ -39,15 +39,18 @@ jobs:
           # cache-dependency-path: 'frontend/package-lock.json'
 
       - name: Install dependencies
+        if: hashFiles('frontend/package.json') != ''
         working-directory: frontend
         run: npm ci --include=dev
 
       - name: Build
+        if: hashFiles('frontend/package.json') != ''
         working-directory: frontend
         run: npm run build
 
       # Opção 1: script de teste configurado no package.json.
       - name: Test
+        if: hashFiles('frontend/package.json') != ''
         working-directory: frontend
         run: npm test
 
