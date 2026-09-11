@@ -1,0 +1,57 @@
+# LoLCoach - Spec-Driven Development
+
+Projeto pessoal para analisar partidas de League of Legends e gerar pontos de melhoria a partir de dados da Riot API.
+
+## Stack sugerida
+
+- Backend: .NET / ASP.NET Core
+- Frontend: Angular
+- Banco: PostgreSQL
+- ORM: EF Core
+- Validação: FluentValidation
+- Integrações HTTP: HttpClientFactory
+- IA: opcional, somente após a camada determinística de analytics
+
+## Estrutura
+
+```text
+/specs
+  /001-player-search
+    spec.md
+    design.md
+    tasks.md
+  /002-match-import
+    spec.md
+    design.md
+    tasks.md
+  /003-analytics
+    spec.md
+    design.md
+    tasks.md
+  /004-dashboard
+    spec.md
+    design.md
+    tasks.md
+  /005-recommendations
+    spec.md
+    design.md
+    tasks.md
+  /006-ai-coach
+    spec.md
+    design.md
+    tasks.md
+/orchestrator
+  ORCHESTRATOR.md
+AGENTS.md
+```
+
+## Ordem recomendada
+
+1. 001-player-search
+2. 002-match-import
+3. 003-analytics
+4. 004-dashboard
+5. 005-recommendations
+6. 006-ai-coach
+
+A IA não deve analisar diretamente o JSON bruto da Riot. Primeiro normalize os dados, calcule métricas e gere insights determinísticos; somente então use um LLM para explicar os resultados.

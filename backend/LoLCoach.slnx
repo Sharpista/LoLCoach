@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/LoLCoach.Api/LoLCoach.Api.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/LoLCoach.Tests/LoLCoach.Tests.csproj" />
+  </Folder>
+</Solution>
