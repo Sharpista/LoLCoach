@@ -1,0 +1,49 @@
+name: deploy
+
+# PLACEHOLDER — pipeline de deploy ainda NÃO implementada.
+#
+# TARGET PENDENTE DE DECISÃO:
+#   - Não existe Dockerfile no repositório.
+#   - Nenhum provedor de cloud/hosting foi escolhido (sem AWS/Azure/Railway/etc.).
+#   - Nenhum ambiente de homologação/produção foi definido.
+#
+# Antes de ativar este workflow é preciso decidir:
+#   1. O que será publicado (imagem Docker? bundle .NET? build estático?).
+#   2. Onde publicar (provedor e serviço de hosting).
+#   3. Quais secrets serão necessários (credenciais de deploy/registry),
+#      sempre referenciadas como ${{ secrets.* }} — NUNCA hardcoded.
+#
+# Disparo: apenas manual (workflow_dispatch).
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    name: Deploy (placeholder)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ---- PASSOS A PREENCHER (ainda sem target definido) ----
+
+      # 1. Build do artefato de deploy (Dockerfile ainda não existe)
+      # - name: Build image
+      #   run: docker build -t locoach:${{ github.sha }} .
+
+      # 2. Login em registry (placeholders de secret)
+      # - name: Login no registry
+      #   run: echo "${{ secrets.DEPLOY_REGISTRY_PASSWORD }}" \
+      #     | docker login -u "${{ secrets.DEPLOY_REGISTRY_USER }}" \
+      #     --password-stdin "${{ secrets.DEPLOY_REGISTRY }}"
+
+      # 3. Publicação no provedor de destino (placeholder)
+      # - name: Deploy
+      #   run: |
+      #     echo "Deploy ainda não implementado — target pendente de decisão"
+      #     echo "Destino: ${{ secrets.DEPLOY_TARGET }}"
+      #     exit 1
+
+      - name: Placeholder — nada a fazer
+        run: echo "Deploy ainda não definido. Ver comentários no topo deste workflow."

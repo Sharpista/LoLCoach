@@ -1,0 +1,39 @@
+name: backend-ci
+
+on:
+  push:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+
+jobs:
+  build-test:
+    name: Build, teste e format do backend
+    runs-on: ubuntu-latest
+    # ubuntu-latest já inclui Docker, necessário para os testes com
+    # Testcontainers (postgres:16-alpine). Nenhum secret é necessário:
+    # o banco é efêmero e a camada Riot usa fake.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore backend/LoLCoach.slnx
+
+      - name: Build
+        run: dotnet build backend/LoLCoach.slnx --no-restore
+
+      - name: Test
+        run: dotnet test backend/LoLCoach.slnx --no-build
+
+      - name: Format check
+        run: dotnet format backend/LoLCoach.slnx --verify-no-changes --no-restore

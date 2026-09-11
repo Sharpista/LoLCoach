@@ -1,0 +1,35 @@
+name: python-ci
+
+# CI leve do Python. Hoje só existe backend/scripts/smoke_host.py, então o
+# escopo é mínimo: checagem de sintaxe com compileall. Se no futuro houver
+# linter/formatter configurado (ruff, black, flake8...), adicione o passo.
+
+on:
+  push:
+    paths:
+      - '**/*.py'
+      - '.github/workflows/python-ci.yml'
+  pull_request:
+    paths:
+      - '**/*.py'
+      - '.github/workflows/python-ci.yml'
+
+jobs:
+  syntax:
+    name: Checagem de sintaxe Python
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Compile (sintaxe)
+        run: python -m compileall -q .
+
+      # Lint opcional — descomente quando houver config (ex.: ruff em pyproject.toml).
+      # - name: Lint (ruff)
+      #   run: pip install ruff && ruff check .
