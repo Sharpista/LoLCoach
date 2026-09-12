@@ -11,9 +11,13 @@ public sealed class PlayerRepository(PlayerDbContext db) : IPlayerRepository
 
     public async Task<Player> SaveAsync(Player player, CancellationToken cancellationToken = default)
     {
-        // FromSql keeps every interpolated value in a database parameter.
-        // Materialize before Single: INSERT ... RETURNING cannot be composed as a subquery.
-        var saved = await db.Players.FromSql($"""
+        // Keep the write and read as separate commands. Supabase's pooler can apply an
+        // INSERT ... RETURNING and then time out while forwarding the result set, which
+        // makes the caller observe a failure even though the upsert was committed.
+        // ExecuteNonQuery avoids that result-set path; the subsequent SELECT reads the
+        // database as the source of truth. The atomic ON CONFLICT upsert and unique index
+        // still prevent duplicate PUUIDs under concurrent requests.
+        await db.Database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO players (id, puuid, game_name, tag_line, region, created_at, last_updated_at)
             VALUES ({player.Id}, {player.Puuid}, {player.GameName}, {player.TagLine},
                     {player.Region}, {player.CreatedAt}, {player.LastUpdatedAt})
@@ -22,8 +26,9 @@ public sealed class PlayerRepository(PlayerDbContext db) : IPlayerRepository
                 tag_line = EXCLUDED.tag_line,
                 region = EXCLUDED.region,
                 last_updated_at = EXCLUDED.last_updated_at
-            RETURNING id, puuid, game_name, tag_line, region, created_at, last_updated_at
-            """).AsNoTracking().ToListAsync(cancellationToken);
-        return saved.Single();
+            """, cancellationToken);
+
+        return await db.Players.AsNoTracking()
+            .SingleAsync(saved => saved.Puuid == player.Puuid, cancellationToken);
     }
 }
