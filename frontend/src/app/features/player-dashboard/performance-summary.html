@@ -1,0 +1,13 @@
+<section class="summary card card--padded">
+  <header class="summary__head">
+    <span class="mono-label">Resumo de performance</span>
+  </header>
+  <div class="summary__grid">
+    @for (stat of stats(); track stat.label) {
+      <div class="summary__stat">
+        <span class="summary__value">{{ stat.value }}</span>
+        <span class="summary__label">{{ stat.label }}</span>
+      </div>
+    }
+  </div>
+</section>

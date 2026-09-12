@@ -1,0 +1,21 @@
+<section class="champs card card--padded">
+  <header class="champs__head">
+    <span class="mono-label">Campeões</span>
+  </header>
+  <div class="champs__table">
+    <div class="champs__row champs__row--head">
+      <span>Campeão</span>
+      <span>Partidas</span>
+      <span>Winrate</span>
+      <span>KDA</span>
+    </div>
+    @for (c of champions(); track c.champion) {
+      <div class="champs__row">
+        <span class="champs__name">{{ c.champion }}</span>
+        <span>{{ c.games }}</span>
+        <span>{{ c.winrate.toFixed(0) }}%</span>
+        <span>{{ c.kda.toFixed(2) }}</span>
+      </div>
+    }
+  </div>
+</section>
