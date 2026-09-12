@@ -1,0 +1,92 @@
+<section class="search">
+  <div class="container">
+    <header class="search__head">
+      <span class="badge">Analytics LoL</span>
+      <h1 class="search__title">Encontre um jogador</h1>
+      <p class="search__subtitle">
+        Informe o Riot ID e a plataforma para analisar a performance recente.
+      </p>
+    </header>
+
+    <form class="card card--padded search__form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+      <div class="search__grid">
+        <div class="field">
+          <label class="field__label" for="gameName">Nome de invocador</label>
+          <input
+            id="gameName"
+            class="input"
+            [class.input--invalid]="errorFor('gameName')"
+            type="text"
+            formControlName="gameName"
+            placeholder="Ex.: Faker"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          @if (errorFor('gameName'); as msg) {
+            <span class="field__error">{{ msg }}</span>
+          }
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="tagLine">Tagline</label>
+          <input
+            id="tagLine"
+            class="input"
+            [class.input--invalid]="errorFor('tagLine')"
+            type="text"
+            formControlName="tagLine"
+            placeholder="Ex.: KR1"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          @if (errorFor('tagLine'); as msg) {
+            <span class="field__error">{{ msg }}</span>
+          }
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="region">Plataforma</label>
+          <select
+            id="region"
+            class="select"
+            [class.select--invalid]="errorFor('region')"
+            formControlName="region"
+          >
+            <option value="" disabled>Selecione a região</option>
+            @for (r of regions; track r.value) {
+              <option [value]="r.value">{{ r.label }}</option>
+            }
+          </select>
+          @if (errorFor('region'); as msg) {
+            <span class="field__error">{{ msg }}</span>
+          }
+        </div>
+      </div>
+
+      @if (errorMessage(); as msg) {
+        <div class="alert" role="alert">
+          <span>{{ msg }}</span>
+        </div>
+      }
+
+      @if (hasFieldErrors()) {
+        <ul class="search__backend-errors">
+          @for (field of fieldErrors() | keyvalue; track field.key) {
+            <li class="mono-label">{{ field.key }}: {{ field.value.join(', ') }}</li>
+          }
+        </ul>
+      }
+
+      <div class="search__actions">
+        <button class="btn btn--primary" type="submit" [disabled]="loading()">
+          @if (loading()) {
+            <span class="search__spinner" aria-hidden="true"></span>
+            <span>Buscando…</span>
+          } @else {
+            <span>Buscar jogador</span>
+          }
+        </button>
+      </div>
+    </form>
+  </div>
+</section>

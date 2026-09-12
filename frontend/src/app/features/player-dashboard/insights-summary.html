@@ -1,0 +1,17 @@
+<section class="insights card card--padded">
+  <header class="insights__head">
+    <span class="mono-label">Principais insights</span>
+  </header>
+  <ol class="insights__list">
+    @for (item of items(); track item.id) {
+      <li class="insights__item">
+        <div class="insights__top">
+          <span class="insights__rank">{{ $index + 1 }}</span>
+          <span [class]="item.badgeClass">{{ item.label }}</span>
+        </div>
+        <h3 class="insights__title">{{ item.title }}</h3>
+        <p class="insights__desc">{{ item.description }}</p>
+      </li>
+    }
+  </ol>
+</section>

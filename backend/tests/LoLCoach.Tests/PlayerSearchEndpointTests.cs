@@ -2,7 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using LoLCoach.Api.Application;
+using LoLCoach.Api.Infrastructure;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -75,6 +77,10 @@ public sealed class PlayerSearchEndpointTests(PostgresFixture postgres) : IClass
         var secondId = JsonDocument.Parse(await second.Content.ReadAsStringAsync())
             .RootElement.GetProperty("id").GetString();
         Assert.Equal(firstId, secondId);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlayerDbContext>();
+        Assert.Equal(1, await db.Players.CountAsync(player => player.Puuid == "puuid-repeat"));
     }
 
     [Fact]

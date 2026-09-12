@@ -1,0 +1,55 @@
+<section class="dashboard">
+  <div class="container">
+    @if (status() === 'loading') {
+      <div class="dashboard__state card card--padded">
+        <span class="dashboard__spinner" aria-hidden="true"></span>
+        <p class="dashboard__state-text">Carregando análise…</p>
+      </div>
+    } @else if (status() === 'not-found') {
+      <div class="dashboard__state card card--padded">
+        <span class="mono-label">Jogador não encontrado</span>
+        <h1 class="dashboard__state-title">Não conseguimos localizar este jogador.</h1>
+        <p class="dashboard__state-text">
+          O ID <span class="mono-label">{{ playerId() }}</span> não corresponde a um
+          jogador analisado.
+        </p>
+        <a class="btn btn--primary" routerLink="/">Voltar à busca</a>
+      </div>
+    } @else if (status() === 'no-matches') {
+      <div class="dashboard__state card card--padded">
+        <span class="mono-label">Sem partidas</span>
+        <h1 class="dashboard__state-title">Ainda não há partidas analisadas.</h1>
+        @if (dashboard(); as d) {
+          <p class="dashboard__state-text">
+            {{ d.player.gameName }}#{{ d.player.tagLine }} ainda não possui partidas
+            importadas. Assim que houver dados, a análise aparecerá aqui.
+          </p>
+        }
+        <a class="btn btn--primary" routerLink="/">Buscar outro jogador</a>
+      </div>
+    } @else if (status() === 'error') {
+      <div class="dashboard__state card card--padded">
+        <span class="mono-label">Erro</span>
+        <h1 class="dashboard__state-title">Falha ao carregar a análise.</h1>
+        <p class="dashboard__state-text">Tente novamente em alguns instantes.</p>
+        <a class="btn btn--primary" routerLink="/">Voltar à busca</a>
+      </div>
+    } @else {
+      @if (dashboard(); as d) {
+        <header class="dashboard__head">
+          <span class="badge">Dashboard</span>
+          <h1 class="dashboard__title">
+            {{ d.player.gameName
+            }}<span class="dashboard__tag">#{{ d.player.tagLine }}</span>
+          </h1>
+          <p class="dashboard__region mono-label">Plataforma {{ d.player.region | uppercase }}</p>
+        </header>
+
+        <app-performance-summary [summary]="d.summary" />
+        <app-insights-summary [insights]="d.insights" />
+        <app-champion-performance [champions]="d.champions" />
+        <app-recent-matches [matches]="d.recentMatches" />
+      }
+    }
+  </div>
+</section>

@@ -1,0 +1,24 @@
+<header class="header">
+  <div class="container header__inner">
+    <a class="brand" routerLink="/" aria-label="LoLCoach — início">
+      <span class="brand__logo">L</span>
+      <span class="brand__name">LoLCoach</span>
+    </a>
+
+    <nav class="nav" aria-label="Navegação principal">
+      <a
+        class="nav__link"
+        routerLink="/"
+        routerLinkActive="nav__link--active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        >Buscar</a
+      >
+      <a
+        class="nav__link"
+        [routerLink]="dashboardLink()"
+        routerLinkActive="nav__link--active"
+        >Dashboard</a
+      >
+    </nav>
+  </div>
+</header>
