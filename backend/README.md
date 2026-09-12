@@ -1,7 +1,6 @@
-# LoLCoach backend — entrega parcial, spec 001 BLOCKED
+# LoLCoach backend — API .NET 10
 
-Base de persistência executável em .NET 10. **POST /api/players/search ainda não existe.**
-As Open Questions em `../specs/001-player-search/spec.md` precisam de decisão sobre `region` e validação de IDs legados antes de implementar o fluxo dependente.
+A API inclui `POST /api/players/search` e documentação OpenAPI/Swagger. As regras da busca estão em `../specs/001-player-search/`; a documentação da API está em `../specs/007-swagger/`.
 
 ## Executar verificação reproduzível
 
@@ -50,13 +49,16 @@ dotnet ef database update --project src/LoLCoach.Api
 
 Migration nova: `20260911183231_InitialPlayers`. Testes aplicam via `Database.MigrateAsync`, nunca `EnsureCreated`, e conferem ausência de model drift. O startup não migra nem abre conexão automaticamente. A factory design-time exige env; não carrega secrets de outros projetos.
 
-Para iniciar apenas o host base, sem banco/key:
+Para iniciar em Development e acessar a documentação (não exige banco ou chave para abrir o Swagger):
 
 ```bash
-dotnet run --project backend/src/LoLCoach.Api --no-launch-profile --urls http://127.0.0.1:5181
+dotnet run --project backend/src/LoLCoach.Api --environment Development --no-launch-profile --urls http://127.0.0.1:5181
 ```
 
-Selecione porta livre. O host não tem rotas de negócio; `/` e `/api/players/search` retornam 404 de **rota ausente**, não o 404 de jogador inexistente da spec. O script smoke usa porta efêmera, registra PID/porta/comando em `backend/artifacts/smoke-host.json` e encerra o próprio processo.
+Abra `http://127.0.0.1:5181/swagger` ou o documento em `http://127.0.0.1:5181/swagger/v1/swagger.json`. Fora de Development, mantenha Swagger desligado por padrão; para habilitar explicitamente, use `Swagger__Enabled=true` e avalie o risco de expor a superfície de documentação.
+
+
+Selecione porta livre. O host expõe a documentação e `POST /api/players/search`; sem persistência configurada, chamadas que dependem do banco falham conforme a configuração existente. O script smoke usa porta efêmera, registra PID/porta/comando em `backend/artifacts/smoke-host.json` e encerra o próprio processo.
 
 ## Estrutura e dependências
 
