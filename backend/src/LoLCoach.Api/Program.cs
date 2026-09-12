@@ -25,6 +25,7 @@ builder.Services.AddSwaggerGen(options =>
     });
     options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory,
         $"{Assembly.GetExecutingAssembly().GetName().Name}.xml"));
+    options.SchemaFilter<SearchPlayerSchemaFilter>();
 });
 
 builder.Services.AddDbContext<PlayerDbContext>((services, options) =>
