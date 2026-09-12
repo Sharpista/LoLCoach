@@ -33,6 +33,11 @@ public sealed class HostTests
         Assert.Contains("404", operation.GetProperty("responses").EnumerateObject().Select(property => property.Name));
         Assert.Contains("429", operation.GetProperty("responses").EnumerateObject().Select(property => property.Name));
         Assert.Contains("503", operation.GetProperty("responses").EnumerateObject().Select(property => property.Name));
+        AssertResponseContentTypes(operation, "200", "application/json");
+        AssertResponseContentTypes(operation, "400", "application/problem+json");
+        AssertResponseContentTypes(operation, "404", "application/problem+json");
+        AssertResponseContentTypes(operation, "429", "application/problem+json");
+        AssertResponseContentTypes(operation, "503", "application/problem+json");
         var requestSchema = operation.GetProperty("requestBody").GetProperty("content")
             .GetProperty("application/json").GetProperty("schema");
         Assert.Equal("#/components/schemas/SearchPlayerCommand", requestSchema.GetProperty("$ref").GetString());
@@ -41,6 +46,13 @@ public sealed class HostTests
         Assert.Contains("gameName", properties.EnumerateObject().Select(property => property.Name));
         Assert.Contains("tagLine", properties.EnumerateObject().Select(property => property.Name));
         Assert.Contains("region", properties.EnumerateObject().Select(property => property.Name));
+    }
+
+    private static void AssertResponseContentTypes(JsonElement operation, string statusCode, params string[] expectedContentTypes)
+    {
+        var contentTypes = operation.GetProperty("responses").GetProperty(statusCode).GetProperty("content")
+            .EnumerateObject().Select(property => property.Name).ToArray();
+        Assert.Equal(expectedContentTypes, contentTypes);
     }
 
     [Fact]

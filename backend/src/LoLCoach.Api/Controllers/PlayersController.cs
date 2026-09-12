@@ -13,8 +13,7 @@ public sealed class PlayersController(SearchPlayerHandler handler) : ControllerB
     /// <returns>The local player record for the account.</returns>
     [HttpPost("search")]
     [Consumes("application/json")]
-    [Produces("application/json", "application/problem+json")]
-    [ProducesResponseType(typeof(PlayerDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PlayerDto), StatusCodes.Status200OK, "application/json")]
     [ProducesResponseType(typeof(HttpValidationProblemDetails), StatusCodes.Status400BadRequest,
         "application/problem+json")]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound,
