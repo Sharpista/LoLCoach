@@ -46,6 +46,22 @@ public sealed class HostTests
         Assert.Contains("gameName", properties.EnumerateObject().Select(property => property.Name));
         Assert.Contains("tagLine", properties.EnumerateObject().Select(property => property.Name));
         Assert.Contains("region", properties.EnumerateObject().Select(property => property.Name));
+        var required = document.RootElement.GetProperty("components").GetProperty("schemas")
+            .GetProperty("SearchPlayerCommand").GetProperty("required")
+            .EnumerateArray().Select(value => value.GetString()!).ToArray();
+        Assert.Equal(["gameName", "tagLine", "region"], required);
+        var gameName = properties.GetProperty("gameName");
+        Assert.Equal(3, gameName.GetProperty("minLength").GetInt32());
+        Assert.Equal(16, gameName.GetProperty("maxLength").GetInt32());
+        Assert.DoesNotContain("pattern", gameName.EnumerateObject().Select(property => property.Name));
+        var tagLine = properties.GetProperty("tagLine");
+        Assert.Equal(2, tagLine.GetProperty("minLength").GetInt32());
+        Assert.Equal(5, tagLine.GetProperty("maxLength").GetInt32());
+        Assert.Equal("^ *[A-Za-z0-9]+ *$", tagLine.GetProperty("pattern").GetString());
+        var regions = properties.GetProperty("region").GetProperty("enum")
+            .EnumerateArray().Select(value => value.GetString()!).ToArray();
+        Assert.Equal(["br1", "eun1", "euw1", "jp1", "kr", "la1", "la2", "na1",
+            "oc1", "ph2", "ru", "sg2", "th2", "tr1", "tw2", "vn2"], regions);
     }
 
     private static void AssertResponseContentTypes(JsonElement operation, string statusCode, params string[] expectedContentTypes)

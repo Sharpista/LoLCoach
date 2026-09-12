@@ -15,6 +15,7 @@ Estado: DONE
 - [x] Habilitar por padrão em Development e exigir configuração explícita fora dele.
 - [x] Documentar `POST /api/players/search` e seus schemas/respostas.
 - [x] Manter validação e comportamento do endpoint inalterados.
+- [x] Projetar no schema required, limites, pattern compatível e enum de plataformas.
 - [x] Atualizar instruções do backend.
 
 ## Testes e qualidade

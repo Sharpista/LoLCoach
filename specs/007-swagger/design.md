@@ -15,7 +15,9 @@ Controllers/ApiExplorer -> Swashbuckle -> /swagger/v1/swagger.json
 
 ## Metadados do endpoint
 
-`PlayersController` declara `Consumes`, `Produces` e `ProducesResponseType` para manter a documentação alinhada ao contrato atual. Comentários XML descrevem campos e validações sem duplicar regras no controller. A validação continua em `SearchPlayerValidator`; atributos Swagger são apenas metadados.
+`PlayersController` declara `Consumes`, `Produces` e `ProducesResponseType` para manter a documentação alinhada ao contrato atual. `SearchPlayerSchemaFilter` projeta no schema os limites, required, pattern compatível e enum de plataformas a partir dos metadados compartilhados pela validação. Comentários XML descrevem os campos sem duplicar regras no controller. A validação continua em `SearchPlayerValidator`; o filtro só altera metadados Swagger.
+
+O padrão Unicode de `gameName` não é emitido como `pattern`: a expressão .NET com `\p{L}`/`\p{N}` não é portável para o dialeto de regex do OpenAPI e um pattern ASCII seria uma restrição incorreta. Para `tagLine`, o pattern inclui espaços opcionais nas bordas, pois o validator aplica a regra alfanumérica após `Trim()`.
 
 A resposta 400 usa `HttpValidationProblemDetails`; 404, 429 e 503 usam `ProblemDetails`, todos com `application/problem+json`. O status 429 pode incluir `Retry-After` no runtime, como já definido no contrato.
 
