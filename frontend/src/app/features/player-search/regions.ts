@@ -22,3 +22,5 @@ export const REGIONS: RegionOption[] = [
   { value: 'tw2', label: 'Taiwan (TW2)' },
   { value: 'vn2', label: 'Vietnã (VN2)' },
 ];
+
+export const SUPPORTED_REGIONS = new Set(REGIONS.map(({ value }) => value));

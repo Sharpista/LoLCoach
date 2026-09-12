@@ -7,7 +7,7 @@ import { PlayerContextService } from '../../core/services/player-context.service
 import { PlayerSearchService } from '../../core/services/player-search.service';
 import { ProblemDetails } from '../../core/models/player';
 import { REGIONS } from './regions';
-import { gameNameValidator, tagLineValidator } from './riot-id.validators';
+import { gameNameValidator, regionValidator, tagLineValidator } from './riot-id.validators';
 
 type FieldName = 'gameName' | 'tagLine' | 'region';
 
@@ -45,7 +45,7 @@ export class PlayerSearch {
   readonly form = this.fb.nonNullable.group({
     gameName: ['', [Validators.required, gameNameValidator()]],
     tagLine: ['', [Validators.required, tagLineValidator()]],
-    region: ['', [Validators.required]],
+    region: ['', [Validators.required, regionValidator()]],
   });
 
   readonly loading = signal(false);
@@ -76,10 +76,17 @@ export class PlayerSearch {
     if (e['tagLinePattern']) {
       return 'Apenas letras e números.';
     }
+    if (e['regionUnsupported']) {
+      return 'Selecione uma plataforma suportada.';
+    }
     return null;
   }
 
   onSubmit(): void {
+    if (this.loading()) {
+      return;
+    }
+
     this.submitted.set(true);
     this.errorMessage.set(null);
     this.fieldErrors.set({});
@@ -94,7 +101,7 @@ export class PlayerSearch {
       .search({
         gameName: raw.gameName.trim(),
         tagLine: raw.tagLine.trim(),
-        region: raw.region,
+        region: raw.region.trim().toLowerCase(),
       })
       .subscribe({
         next: (player) => {
