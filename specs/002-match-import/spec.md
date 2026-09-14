@@ -1,7 +1,7 @@
 ---
 id: 002
 name: match-import
-status: READY
+status: REVIEW
 depends_on:
   - 001
 ---
