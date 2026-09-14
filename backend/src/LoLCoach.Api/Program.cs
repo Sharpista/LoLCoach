@@ -35,10 +35,17 @@ builder.Services.AddDbContext<PlayerDbContext>((services, options) =>
     options.UseNpgsql(connection);
 });
 builder.Services.AddScoped<IPlayerRepository, PlayerRepository>();
+builder.Services.AddScoped<IMatchRepository, MatchRepository>();
+builder.Services.AddScoped<IMatchNormalizer, MatchNormalizer>();
 builder.Services.AddScoped<IValidator<SearchPlayerCommand>, SearchPlayerValidator>();
 builder.Services.AddScoped<SearchPlayerHandler>();
+builder.Services.AddScoped<SyncPlayerMatchesHandler>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddHttpClient<IRiotAccountClient, RiotAccountClient>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+builder.Services.AddHttpClient<IRiotMatchClient, RiotMatchClient>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(10);
 });
