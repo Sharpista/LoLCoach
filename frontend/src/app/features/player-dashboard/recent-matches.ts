@@ -7,7 +7,6 @@ import { RecentMatch } from '../../core/models/dashboard';
   selector: 'app-recent-matches',
   imports: [DatePipe],
   templateUrl: './recent-matches.html',
-  styleUrl: './recent-matches.scss',
 })
 export class RecentMatches {
   readonly matches = input.required<RecentMatch[]>();

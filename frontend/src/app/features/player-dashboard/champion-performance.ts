@@ -5,7 +5,6 @@ import { ChampionPerformance as ChampionData } from '../../core/models/dashboard
 @Component({
   selector: 'app-champion-performance',
   templateUrl: './champion-performance.html',
-  styleUrl: './champion-performance.scss',
 })
 export class ChampionPerformance {
   readonly champions = input.required<ChampionData[]>();

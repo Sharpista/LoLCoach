@@ -22,7 +22,6 @@ type DashboardStatus = 'loading' | 'not-found' | 'no-matches' | 'error' | 'ready
     RecentMatches,
   ],
   templateUrl: './player-dashboard.html',
-  styleUrl: './player-dashboard.scss',
 })
 export class PlayerDashboard implements OnInit {
   private readonly route = inject(ActivatedRoute);

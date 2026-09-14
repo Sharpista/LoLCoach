@@ -16,7 +16,6 @@ function severityLabel(severity: InsightSeverity): string {
 @Component({
   selector: 'app-insights-summary',
   templateUrl: './insights-summary.html',
-  styleUrl: './insights-summary.scss',
 })
 export class InsightsSummary {
   readonly insights = input.required<Insight[]>();
@@ -24,10 +23,6 @@ export class InsightsSummary {
   readonly items = computed(() =>
     this.insights()
       .slice(0, 3)
-      .map((i) => ({
-        ...i,
-        label: severityLabel(i.severity),
-        badgeClass: i.severity === 'high' ? 'badge' : 'badge badge--neutral',
-      })),
+      .map((i) => ({ ...i, label: severityLabel(i.severity) })),
   );
 }

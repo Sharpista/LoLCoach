@@ -1,19 +1,23 @@
-<section class="recent card card--padded">
-  <header class="recent__head">
-    <span class="mono-label">Histórico recente</span>
+<section class="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm dark:border-stone-800 dark:bg-stone-900">
+  <header class="mb-4">
+    <span class="font-mono text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Histórico recente</span>
   </header>
-  <ul class="recent__list">
+  <ul class="flex flex-col">
     @for (m of matches(); track m.id) {
-      <li class="recent__item">
+      <li class="flex flex-wrap items-center gap-3.5 border-b border-stone-100 px-1 py-3 text-sm last:border-b-0 dark:border-stone-800/60">
         <span
-          [class]="m.result === 'win' ? 'badge badge--positive' : 'badge badge--negative'"
+          [class]="m.result === 'win'
+            ? 'inline-flex items-center rounded-full border border-green-300/40 bg-green-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-green-700 dark:border-green-500/30 dark:bg-green-950/40 dark:text-green-300'
+            : 'inline-flex items-center rounded-full border border-red-300/40 bg-red-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-red-700 dark:border-red-500/30 dark:bg-red-950/40 dark:text-red-300'"
         >
           {{ m.result === 'win' ? 'Vitória' : 'Derrota' }}
         </span>
-        <span class="recent__champ">{{ m.champion }}</span>
-        <span class="recent__kda">{{ m.kda }} <em>KDA</em></span>
-        <span class="recent__meta">{{ m.cs }} CS · {{ m.durationMinutes }} min</span>
-        <time class="recent__date" [attr.datetime]="m.playedAt">
+        <span class="min-w-20 font-semibold text-stone-900 dark:text-stone-100">{{ m.champion }}</span>
+        <span class="tabular-nums text-stone-600 dark:text-stone-300">
+          {{ m.kda }} <em class="font-mono text-[11px] uppercase not-italic tracking-wider text-stone-500">KDA</em>
+        </span>
+        <span class="tabular-nums text-stone-500 dark:text-stone-400">{{ m.cs }} CS · {{ m.durationMinutes }} min</span>
+        <time class="ml-auto font-mono text-xs text-stone-500 dark:text-stone-500" [attr.datetime]="m.playedAt">
           {{ m.playedAt | date: 'dd/MM HH:mm' }}
         </time>
       </li>
