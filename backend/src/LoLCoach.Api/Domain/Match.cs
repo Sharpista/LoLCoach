@@ -24,5 +24,9 @@ public sealed class Match
         GameMode = gameMode;
     }
 
-    public void AddPlayerMatch(PlayerMatch playerMatch) => _playerMatches.Add(playerMatch);
+    public void AddPlayerMatch(PlayerMatch playerMatch)
+    {
+        playerMatch.AttachToMatch(this);
+        _playerMatches.Add(playerMatch);
+    }
 }

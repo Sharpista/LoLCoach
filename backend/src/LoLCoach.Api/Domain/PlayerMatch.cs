@@ -45,4 +45,10 @@ public sealed class PlayerMatch
         WardsPlaced = wardsPlaced;
         WardsKilled = wardsKilled;
     }
+
+    internal void AttachToMatch(Match match)
+    {
+        Match = match;
+        MatchId = match.Id;
+    }
 }

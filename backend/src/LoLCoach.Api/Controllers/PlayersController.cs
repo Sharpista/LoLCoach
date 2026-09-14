@@ -5,7 +5,10 @@ namespace LoLCoach.Api.Controllers;
 
 [ApiController]
 [Route("api/players")]
-public sealed class PlayersController(SearchPlayerHandler searchPlayerHandler, SyncPlayerMatchesHandler syncPlayerMatchesHandler) : ControllerBase
+public sealed class PlayersController(
+    SearchPlayerHandler searchPlayerHandler,
+    SyncPlayerMatchesHandler syncPlayerMatchesHandler,
+    PerformanceAnalysisService performanceAnalysisService) : ControllerBase
 {
     /// <summary>Searches for a Riot account and upserts its local player record.</summary>
     /// <param name="command">Riot ID and the LoL platform to search.</param>
@@ -39,4 +42,15 @@ public sealed class PlayersController(SearchPlayerHandler searchPlayerHandler, S
         "application/problem+json")]
     public async Task<ActionResult<SyncPlayerMatchesResult>> SyncMatches(Guid id, CancellationToken cancellationToken)
         => Ok(await syncPlayerMatchesHandler.SyncAsync(new SyncPlayerMatchesCommand(id), cancellationToken));
+
+    /// <summary>Returns deterministic performance analysis for a persisted player.</summary>
+    /// <param name="id">Local player identifier.</param>
+    /// <param name="cancellationToken">Request cancellation token.</param>
+    /// <returns>Performance summary, top insights, champion metrics and recent matches.</returns>
+    [HttpGet("{id:guid}/analysis")]
+    [ProducesResponseType(typeof(PerformanceAnalysisDto), StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound,
+        "application/problem+json")]
+    public async Task<ActionResult<PerformanceAnalysisDto>> Analysis(Guid id, CancellationToken cancellationToken)
+        => Ok(await performanceAnalysisService.AnalyzeAsync(id, cancellationToken));
 }

@@ -1,21 +1,21 @@
 # Tasks 003 - Analytics Engine
 
-- [ ] Criar `PlayerMetrics`.
-- [ ] Criar `PlayerMetricsCalculator`.
-- [ ] Calcular winrate.
-- [ ] Calcular KDA.
-- [ ] Calcular CS/min.
-- [ ] Calcular vision/min.
-- [ ] Calcular damage/min.
-- [ ] Criar `Insight`, `InsightType`, `InsightSeverity`.
-- [ ] Criar `FarmingAnalyzer` e testes.
-- [ ] Criar `DeathAnalyzer` e testes.
-- [ ] Criar `VisionAnalyzer` e testes.
-- [ ] Criar `CombatAnalyzer` e testes.
-- [ ] Criar `ConsistencyAnalyzer` e testes.
-- [ ] Criar `ChampionAnalyzer` e testes.
-- [ ] Criar `PerformanceAnalysisService`.
-- [ ] Consolidar/remover duplicidades de insights.
-- [ ] Ordenar por prioridade e limitar aos principais.
-- [ ] Criar endpoint `/api/players/{id}/analysis`.
-- [ ] Criar testes de integração.
+- [x] Criar `PlayerMetrics`.
+- [x] Criar `PlayerMetricsCalculator`.
+- [x] Calcular winrate.
+- [x] Calcular KDA.
+- [x] Calcular CS/min.
+- [x] Calcular vision/min.
+- [x] Calcular damage/min.
+- [x] Criar `Insight`, `InsightType`, `InsightSeverity`.
+- [x] Criar `FarmingAnalyzer` e testes.
+- [x] Criar `DeathAnalyzer` e testes.
+- [x] Criar `VisionAnalyzer` e testes.
+- [x] Criar `CombatAnalyzer` e testes.
+- [x] Criar `ConsistencyAnalyzer` e testes.
+- [x] Criar `ChampionAnalyzer` e testes.
+- [x] Criar `PerformanceAnalysisService`.
+- [x] Consolidar/remover duplicidades de insights.
+- [x] Ordenar por prioridade e limitar aos principais.
+- [x] Criar endpoint `/api/players/{id}/analysis`.
+- [x] Criar testes de integração.

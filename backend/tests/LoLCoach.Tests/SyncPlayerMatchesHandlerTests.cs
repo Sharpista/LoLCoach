@@ -37,6 +37,12 @@ public sealed class SyncPlayerMatchesHandlerTests
         public Task<bool> ExistsByRiotMatchIdAsync(string riotMatchId, CancellationToken cancellationToken = default)
             => Task.FromResult(_existing.Contains(riotMatchId));
 
+        public Task<IReadOnlyList<PlayerMatch>> ListPlayerMatchesForAnalysisAsync(Guid playerId,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<PlayerMatch>>(Added.SelectMany(match => match.PlayerMatches)
+                .Where(playerMatch => playerMatch.PlayerId == playerId)
+                .ToList());
+
         public Task AddAsync(Match match, CancellationToken cancellationToken = default)
         {
             _existing.Add(match.RiotMatchId);

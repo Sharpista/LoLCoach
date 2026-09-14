@@ -1,5 +1,7 @@
 using System.Reflection;
 using FluentValidation;
+using LoLCoach.Api.Analytics.Analyzers;
+using LoLCoach.Api.Analytics.Metrics;
 using LoLCoach.Api.Application;
 using LoLCoach.Api.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -40,6 +42,14 @@ builder.Services.AddScoped<IMatchNormalizer, MatchNormalizer>();
 builder.Services.AddScoped<IValidator<SearchPlayerCommand>, SearchPlayerValidator>();
 builder.Services.AddScoped<SearchPlayerHandler>();
 builder.Services.AddScoped<SyncPlayerMatchesHandler>();
+builder.Services.AddSingleton<PlayerMetricsCalculator>();
+builder.Services.AddSingleton<IPerformanceAnalyzer, FarmingAnalyzer>();
+builder.Services.AddSingleton<IPerformanceAnalyzer, DeathAnalyzer>();
+builder.Services.AddSingleton<IPerformanceAnalyzer, VisionAnalyzer>();
+builder.Services.AddSingleton<IPerformanceAnalyzer, CombatAnalyzer>();
+builder.Services.AddSingleton<IPerformanceAnalyzer, ConsistencyAnalyzer>();
+builder.Services.AddSingleton<IPerformanceAnalyzer, ChampionAnalyzer>();
+builder.Services.AddScoped<PerformanceAnalysisService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddHttpClient<IRiotAccountClient, RiotAccountClient>(client =>
 {
