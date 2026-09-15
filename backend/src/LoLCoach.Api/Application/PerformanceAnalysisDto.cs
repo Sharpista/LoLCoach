@@ -4,6 +4,8 @@ public sealed record PerformanceAnalysisDto(
     AnalysisPlayerDto Player,
     PerformanceSummaryDto Summary,
     IReadOnlyList<AnalysisInsightDto> Insights,
+    IReadOnlyList<RecommendationDto> Recommendations,
+    CoachReport CoachReport,
     IReadOnlyList<ChampionPerformanceDto> Champions,
     IReadOnlyList<RecentMatchDto> RecentMatches);
 
@@ -27,6 +29,14 @@ public sealed record AnalysisInsightDto(
     decimal CurrentValue,
     decimal TargetValue,
     int MatchesAnalyzed);
+
+public sealed record RecommendationDto(
+    string ProblemType,
+    string Evidence,
+    string ImpactContext,
+    string RecommendationText,
+    string GoalMetric,
+    decimal TargetValue);
 
 public sealed record ChampionPerformanceDto(string Champion, int Games, decimal Winrate, decimal Kda);
 
