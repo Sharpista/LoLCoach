@@ -28,4 +28,8 @@
   - `dotnet build backend/LoLCoach.slnx` — sucesso, 0 warnings, 0 errors.
   - `dotnet test backend/tests/LoLCoach.Tests/LoLCoach.Tests.csproj --no-build --logger "console;verbosity=normal"` — sucesso, 75 testes passados.
   - `dotnet format backend/LoLCoach.slnx --verify-no-changes` — sucesso.
-- QA independente: pendente após implementação e verificação das specs 005+006.
+- QA independente: aprovado (cenários de fallback determinístico, timeout, resposta inválida e ausência de chave). Parecer registrado a partir do relatório de execução da task; não há artefato versionado desta QA.
+- Code review independente: aprovado, sem achados bloqueantes ou importantes. Mesma origem do parecer de QA.
+- CI `backend-ci`: SUCCESS no head de implementação `6852027` (eventos `push` e `pull_request`).
+- Verificação independente do agente `github-profile`: `dotnet build` 0 warnings / 0 errors e `dotnet test` 75/75 passando, reproduzidos fora do fluxo de implementação.
+- Promoção: `status: READY -> DONE` em `spec.md`, após QA e code review aprovados, conforme `AGENTS.md` e `orchestrator/ORCHESTRATOR.md`.

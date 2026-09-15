@@ -1,7 +1,7 @@
 ---
 id: 006
 name: ai-coach
-status: READY
+status: DONE
 depends_on:
   - 003
   - 005

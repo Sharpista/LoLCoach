@@ -1,7 +1,7 @@
 ---
 id: 005
 name: recommendations
-status: READY
+status: DONE
 depends_on:
   - 003
 ---
