@@ -5,7 +5,6 @@ import { PerformanceSummary as SummaryData } from '../../core/models/dashboard';
 @Component({
   selector: 'app-performance-summary',
   templateUrl: './performance-summary.html',
-  styleUrl: './performance-summary.scss',
 })
 export class PerformanceSummary {
   readonly summary = input.required<SummaryData>();

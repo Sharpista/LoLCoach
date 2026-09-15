@@ -6,6 +6,5 @@ import { Header } from './core/layout/header';
   selector: 'app-root',
   imports: [RouterOutlet, Header],
   templateUrl: './app.html',
-  styleUrl: './app.scss',
 })
 export class App {}

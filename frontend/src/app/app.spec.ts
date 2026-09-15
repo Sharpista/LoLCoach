@@ -20,6 +20,6 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
-    expect(el.querySelector('.brand__name')?.textContent).toContain('LoLCoach');
+    expect(el.querySelector('[data-testid="brand-name"]')?.textContent).toContain('LoLCoach');
   });
 });

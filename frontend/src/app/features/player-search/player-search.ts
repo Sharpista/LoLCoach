@@ -27,12 +27,14 @@ function mapSearchError(err: HttpErrorResponse): string {
   }
 }
 
+const INPUT_BASE_CLASSES =
+  'w-full rounded-xl border bg-stone-50 px-4 py-3 text-sm text-stone-900 transition-colors placeholder:text-stone-500 focus:outline-none dark:bg-stone-800 dark:text-white';
+
 /** Tela de busca (spec 001): Riot ID + região -> POST /api/players/search. */
 @Component({
   selector: 'app-player-search',
   imports: [ReactiveFormsModule, KeyValuePipe],
   templateUrl: './player-search.html',
-  styleUrl: './player-search.scss',
 })
 export class PlayerSearch {
   private readonly fb = inject(FormBuilder);
@@ -54,6 +56,15 @@ export class PlayerSearch {
   readonly fieldErrors = signal<Record<string, string[]>>({});
   readonly hasFieldErrors = computed(() => Object.keys(this.fieldErrors()).length > 0);
   readonly submitted = signal(false);
+
+  /** Classes Tailwind do input/select, com borda de erro quando o campo está inválido. */
+  inputClass(field: FieldName): string {
+    const invalid = this.errorFor(field);
+    const border = invalid
+      ? ' border-red-500 dark:border-red-400'
+      : ' border-stone-200 focus:border-stone-900 dark:border-stone-700 dark:focus:border-stone-100';
+    return INPUT_BASE_CLASSES + border;
+  }
 
   errorFor(field: FieldName): string | null {
     const control = this.form.get(field);
