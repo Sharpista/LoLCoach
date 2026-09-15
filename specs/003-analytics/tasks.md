@@ -19,3 +19,21 @@
 - [x] Ordenar por prioridade e limitar aos principais.
 - [x] Criar endpoint `/api/players/{id}/analysis`.
 - [x] Criar testes de integração.
+
+## Rastreabilidade
+
+Estado: DONE — `READY -> REVIEW -> DONE`. Promoção para DONE na branch `chore/spec-002-003-done` (base `8be530d`).
+
+- Implementação entregue: PR #12 (`chore/003-analytics-integration`), merge `b875658` em `develop`.
+- Código correspondente por task:
+  - Métricas: `backend/src/LoLCoach.Api/Analytics/Metrics/PlayerMetrics.cs`, `Analytics/Metrics/PlayerMetricsCalculator.cs`.
+  - Insights: `backend/src/LoLCoach.Api/Analytics/Insights/Insight.cs`, `InsightType.cs`, `InsightSeverity.cs`.
+  - Analyzers: `backend/src/LoLCoach.Api/Analytics/Analyzers/IPerformanceAnalyzer.cs` + `FarmingAnalyzer.cs`, `DeathAnalyzer.cs`, `VisionAnalyzer.cs`, `CombatAnalyzer.cs`, `ConsistencyAnalyzer.cs`, `ChampionAnalyzer.cs`.
+  - Serviço e DTO: `backend/src/LoLCoach.Api/Application/PerformanceAnalysisService.cs`, `Application/PerformanceAnalysisDto.cs` (deduplica insights por tipo, ordena por severidade, gap relativo e tipo, limita aos 3 principais).
+  - Endpoint: `backend/src/LoLCoach.Api/Controllers/PlayersController.cs` (`GET /api/players/{id}/analysis`).
+- Determinismo (regra central da spec): nenhuma análise depende de LLM; os números derivam das partidas persistidas e a ordenação é determinística.
+- Testes: `backend/tests/LoLCoach.Tests/PlayerMetricsCalculatorTests.cs`, `PerformanceAnalyzerTests.cs`, `PerformanceAnalysisEndpointTests.cs`.
+- Consumo posterior: o mesmo endpoint passou a devolver `recommendations` e `coachReport` nas specs 005 e 006, sem quebrar o contrato anterior.
+- CI `backend-ci`: SUCCESS no head do PR (`fe850f2`, evento `pull_request`) e no commit de merge em `develop` (`b875658`, evento `push`).
+- Verificação independente do agente `github-profile` no head atual de `develop` (`8be530d`): `dotnet build` 0 warnings / 0 errors e `dotnet test` 75/75 passando, incluindo as suítes desta spec.
+- Ressalva de rastreabilidade: o PR #12 registrou a promoção para `REVIEW` e não há parecer de QA/code review versionado para esta spec; a promoção para DONE foi feita sobre a evidência de código, CI verde, testes reproduzidos e o merge aceito, não sobre um parecer formal arquivado.

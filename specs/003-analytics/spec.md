@@ -1,7 +1,7 @@
 ---
 id: 003
 name: analytics
-status: REVIEW
+status: DONE
 depends_on:
   - 001
   - 002
