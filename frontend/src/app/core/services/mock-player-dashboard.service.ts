@@ -4,15 +4,11 @@ import { PlayerDashboard } from '../models/dashboard';
 import { DashboardError, PlayerDashboardService } from './player-dashboard.service';
 
 /**
- * Provider MOCK do dashboard (spec 004), usado enquanto o backend 002/003
- * não existe. TROQUE por um `HttpPlayerDashboardService` em `app.config.ts`
- * quando a API real for implementada.
+ * Provider MOCK do dashboard (spec 004). App usa HttpPlayerDashboardService;
+ * mantenha este mock só para demos manuais (swap em app.config se precisar).
  *
- * IDs sentinela para exercitar manualmente os estados da tela:
- *   - `/player/not-found`  -> estado "jogador não encontrado" (404)
- *   - `/player/no-matches` -> estado "sem partidas"
- *   - `/player/error`      -> estado "erro externo"
- *   - qualquer outro id    -> dashboard completo (dados mock)
+ * IDs sentinela:
+ *   - `/player/not-found` | `/player/no-matches` | `/player/error`
  */
 @Injectable()
 export class MockPlayerDashboardService extends PlayerDashboardService {

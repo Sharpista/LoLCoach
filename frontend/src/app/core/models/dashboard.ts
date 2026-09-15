@@ -25,6 +25,12 @@ export interface Insight {
   severity: InsightSeverity;
   title: string;
   description: string;
+  /** Campos extras do DTO 003 — opcionais na UI. */
+  type?: string;
+  metric?: string;
+  currentValue?: number;
+  targetValue?: number;
+  matchesAnalyzed?: number;
 }
 
 export interface ChampionPerformance {
