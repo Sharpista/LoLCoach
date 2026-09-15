@@ -1,7 +1,7 @@
 ---
 id: 001
 name: player-search
-status: IN_PROGRESS
+status: DONE
 depends_on: []
 ---
 
@@ -59,5 +59,10 @@ Permitir que o usuário informe um Riot ID e o sistema localize a conta correspo
 
 1. **Contrato de `region`**: o usuário informa a **plataforma LoL** (`br1`, `euw1`, `na1`, `kr`, ...). O backend deriva o **routing regional** (`americas`/`asia`/`europe`/`sea`) internamente para chamar a ACCOUNT-V1 e **persiste/devolve a plataforma**. Região não é inferida a partir de `tagLine`. Valores aceitos: conjunto atual de plataformas LoL (ver tabela de mapeamento em `design.md`).
 2. **Validação de IDs legados**: a busca aceita `tagLine` legado de 2–5 caracteres (ex.: `BR`, `NA`, `KR`) além da regra de criação/alteração (3–5). Normalização case-insensitive; `gameName` aceita Unicode e espaços. A criação/alteração de conta mantém `gameName` 3–16 e `tagLine` 3–5.
+3. **Navegação pós-busca**: o frontend navega para `/player/:id` (detalhe do jogador) após busca bem-sucedida. Decisão (2026-09-14): manter o detalhe do jogador como destino pós-busca. O item original do `tasks.md` ("dashboard") estava desatualizado.
+
+## Open Questions
+
+Nenhuma.
 
 Nenhuma dependência de outra spec (`depends_on: []`).
