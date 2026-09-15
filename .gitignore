@@ -17,3 +17,7 @@ node_modules/
 .env
 .env.*
 !.env.example
+
+# Hermes / agente: worktrees de tarefa e cache do Angular CLI
+.worktrees/
+.angular/
