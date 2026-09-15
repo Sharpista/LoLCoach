@@ -81,8 +81,8 @@ public sealed class PlayerRepositoryTests(PostgresFixture postgres) : IClassFixt
     {
         await using var db = postgres.CreateContext();
         var applied = await db.Database.GetAppliedMigrationsAsync();
-        Assert.Single(applied);
-        Assert.EndsWith("_InitialPlayers", applied.Single());
+        Assert.Contains(applied, migration => migration.EndsWith("_InitialPlayers"));
+        Assert.Contains(applied, migration => migration.EndsWith("_AddMatches"));
         Assert.Empty(await db.Database.GetPendingMigrationsAsync());
         Assert.False(db.Database.HasPendingModelChanges());
     }

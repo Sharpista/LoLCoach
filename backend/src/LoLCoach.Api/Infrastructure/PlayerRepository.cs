@@ -9,6 +9,9 @@ namespace LoLCoach.Api.Infrastructure;
 
 public sealed class PlayerRepository(PlayerDbContext db) : IPlayerRepository
 {
+    public Task<Player?> FindByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        => db.Players.AsNoTracking().SingleOrDefaultAsync(player => player.Id == id, cancellationToken);
+
     public Task<Player?> FindByPuuidAsync(string puuid, CancellationToken cancellationToken = default)
         => db.Players.AsNoTracking().SingleOrDefaultAsync(player => player.Puuid == puuid, cancellationToken);
 
