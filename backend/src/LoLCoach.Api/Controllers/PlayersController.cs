@@ -46,7 +46,7 @@ public sealed class PlayersController(
     /// <summary>Returns deterministic performance analysis for a persisted player.</summary>
     /// <param name="id">Local player identifier.</param>
     /// <param name="cancellationToken">Request cancellation token.</param>
-    /// <returns>Performance summary, top insights, champion metrics and recent matches.</returns>
+    /// <returns>Performance summary, top insights, recommendations, coach report, champion metrics and recent matches.</returns>
     [HttpGet("{id:guid}/analysis")]
     [ProducesResponseType(typeof(PerformanceAnalysisDto), StatusCodes.Status200OK, "application/json")]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound,

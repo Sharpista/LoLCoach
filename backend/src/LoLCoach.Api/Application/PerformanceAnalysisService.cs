@@ -1,6 +1,8 @@
 using LoLCoach.Api.Analytics.Analyzers;
 using LoLCoach.Api.Analytics.Insights;
 using LoLCoach.Api.Analytics.Metrics;
+using LoLCoach.Api.Analytics.Recommendations;
+using LoLCoach.Api.Infrastructure;
 
 namespace LoLCoach.Api.Application;
 
@@ -8,7 +10,10 @@ public sealed class PerformanceAnalysisService(
     IPlayerRepository playerRepository,
     IMatchRepository matchRepository,
     PlayerMetricsCalculator metricsCalculator,
-    IEnumerable<IPerformanceAnalyzer> analyzers)
+    IEnumerable<IPerformanceAnalyzer> analyzers,
+    RecommendationEngine recommendationEngine,
+    IAiCoach aiCoach,
+    ILogger<PerformanceAnalysisService> logger)
 {
     private const int InsightLimit = 3;
 
@@ -26,19 +31,25 @@ public sealed class PerformanceAnalysisService(
             .ThenByDescending(InsightGap)
             .ThenBy(insight => insight.Type.ToString(), StringComparer.Ordinal)
             .Take(InsightLimit)
-            .Select(ToDto)
             .ToList();
+        var insightDtos = insights.Select(ToDto).ToList();
+        var recommendationDtos = recommendationEngine.Generate(insights).Select(ToDto).ToList();
+        var summary = new PerformanceSummaryDto(
+            metrics.Matches,
+            metrics.WinRate,
+            metrics.Kda,
+            metrics.CsPerMinute,
+            metrics.VisionPerMinute,
+            metrics.DamagePerMinute);
+        var coachInput = new CoachAnalysisInput(summary, insightDtos, recommendationDtos);
+        var coachReport = await CreateCoachReportAsync(coachInput, cancellationToken);
 
         return new PerformanceAnalysisDto(
             new AnalysisPlayerDto(player.Id, player.GameName, player.TagLine, player.Region),
-            new PerformanceSummaryDto(
-                metrics.Matches,
-                metrics.WinRate,
-                metrics.Kda,
-                metrics.CsPerMinute,
-                metrics.VisionPerMinute,
-                metrics.DamagePerMinute),
-            insights,
+            summary,
+            insightDtos,
+            recommendationDtos,
+            coachReport,
             metrics.Champions.Select(champion => new ChampionPerformanceDto(
                 champion.Champion,
                 champion.Games,
@@ -54,6 +65,19 @@ public sealed class PerformanceAnalysisService(
                 match.PlayedAt)).ToList());
     }
 
+    private async Task<CoachReport> CreateCoachReportAsync(CoachAnalysisInput input, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await aiCoach.CreateReportAsync(input, cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            logger.LogWarning(exception, "AI Coach unavailable; using deterministic fallback.");
+            return DeterministicCoachReportFactory.Create(input);
+        }
+    }
+
     private static AnalysisInsightDto ToDto(Insight insight) => new(
         ToStableId(insight.Type),
         ToCamelCase(insight.Severity.ToString()),
@@ -64,6 +88,14 @@ public sealed class PerformanceAnalysisService(
         insight.CurrentValue,
         insight.TargetValue,
         insight.MatchesAnalyzed);
+
+    private static RecommendationDto ToDto(Recommendation recommendation) => new(
+        ToInsightTypeCode(recommendation.ProblemType),
+        recommendation.Evidence,
+        recommendation.ImpactContext,
+        recommendation.RecommendationText,
+        recommendation.GoalMetric,
+        recommendation.TargetValue);
 
     private static int SeverityRank(Insight insight) => insight.Severity switch
     {

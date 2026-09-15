@@ -2,6 +2,7 @@ using System.Reflection;
 using FluentValidation;
 using LoLCoach.Api.Analytics.Analyzers;
 using LoLCoach.Api.Analytics.Metrics;
+using LoLCoach.Api.Analytics.Recommendations;
 using LoLCoach.Api.Application;
 using LoLCoach.Api.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -49,7 +50,16 @@ builder.Services.AddSingleton<IPerformanceAnalyzer, VisionAnalyzer>();
 builder.Services.AddSingleton<IPerformanceAnalyzer, CombatAnalyzer>();
 builder.Services.AddSingleton<IPerformanceAnalyzer, ConsistencyAnalyzer>();
 builder.Services.AddSingleton<IPerformanceAnalyzer, ChampionAnalyzer>();
+builder.Services.AddSingleton<RecommendationEngine>();
 builder.Services.AddScoped<PerformanceAnalysisService>();
+builder.Services.AddOptions<AiCoachOptions>()
+    .BindConfiguration(AiCoachOptions.SectionName)
+    .PostConfigure(options =>
+    {
+        options.GeminiApiKey ??= builder.Configuration["GEMINI_API_KEY"];
+    })
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddHttpClient<IRiotAccountClient, RiotAccountClient>(client =>
 {
@@ -58,6 +68,11 @@ builder.Services.AddHttpClient<IRiotAccountClient, RiotAccountClient>(client =>
 builder.Services.AddHttpClient<IRiotMatchClient, RiotMatchClient>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(10);
+});
+builder.Services.AddHttpClient<IAiCoach, GeminiAiCoach>((services, client) =>
+{
+    var options = services.GetRequiredService<Microsoft.Extensions.Options.IOptions<AiCoachOptions>>().Value;
+    client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
 });
 
 var corsAllowedOrigins = GetAllowedOrigins(builder);

@@ -24,7 +24,30 @@ public sealed class PerformanceAnalysisEndpointTests(PostgresFixture postgres) :
             => throw new NotSupportedException();
     }
 
-    private WebApplicationFactory<Program> CreateFactory()
+    private sealed class ThrowingAiCoach : IAiCoach
+    {
+        public Task<CoachReport> CreateReportAsync(CoachAnalysisInput input,
+            CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("fake ai coach failure");
+    }
+
+    private sealed class FakeAiCoach : IAiCoach
+    {
+        public Task<CoachReport> CreateReportAsync(CoachAnalysisInput input,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(new CoachReport(
+                "Relatório fake baseado somente no payload validado.",
+                ["Força fake"],
+                ["Fraqueza fake"],
+                "Prioridade fake",
+                input.Recommendations.Take(1).Select(recommendation => new CoachGoalDto(
+                    recommendation.GoalMetric,
+                    recommendation.TargetValue,
+                    recommendation.RecommendationText)).ToList(),
+                true));
+    }
+
+    private WebApplicationFactory<Program> CreateFactory(IAiCoach? aiCoach = null)
     {
         var connectionString = postgres.ConnectionString;
         return new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
@@ -35,6 +58,8 @@ public sealed class PerformanceAnalysisEndpointTests(PostgresFixture postgres) :
             {
                 services.RemoveAll<IRiotMatchClient>();
                 services.AddSingleton<IRiotMatchClient, FakeRiotMatchClient>();
+                services.RemoveAll<IAiCoach>();
+                services.AddSingleton(aiCoach ?? new ThrowingAiCoach());
             });
         });
     }
@@ -59,9 +84,34 @@ public sealed class PerformanceAnalysisEndpointTests(PostgresFixture postgres) :
         Assert.Contains(insights, insight =>
             insight.GetProperty("type").GetString() == "HIGH_DEATHS" &&
             insight.GetProperty("metric").GetString() == "averageDeaths");
+        var recommendations = root.GetProperty("recommendations").EnumerateArray().ToList();
+        Assert.Equal(3, recommendations.Count);
+        Assert.Contains(recommendations, recommendation =>
+            recommendation.GetProperty("problemType").GetString() == "HIGH_DEATHS" &&
+            recommendation.GetProperty("goalMetric").GetString() == "averageDeaths");
+        var coachReport = root.GetProperty("coachReport");
+        Assert.False(coachReport.GetProperty("generatedByAi").GetBoolean());
+        Assert.NotEmpty(coachReport.GetProperty("plan").EnumerateArray());
         Assert.Equal(3, root.GetProperty("champions").GetArrayLength());
         Assert.Equal(3, root.GetProperty("recentMatches").GetArrayLength());
         Assert.Equal("Lux", root.GetProperty("recentMatches")[0].GetProperty("champion").GetString());
+    }
+
+    [Fact]
+    public async Task Analysis_uses_ai_coach_when_fake_provider_returns_valid_report()
+    {
+        var player = await SavePlayerWithMatchesAsync();
+        await using var factory = CreateFactory(new FakeAiCoach());
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync($"/api/players/{player.Id}/analysis");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var coachReport = json.RootElement.GetProperty("coachReport");
+        Assert.True(coachReport.GetProperty("generatedByAi").GetBoolean());
+        Assert.Equal("Relatório fake baseado somente no payload validado.",
+            coachReport.GetProperty("periodSummary").GetString());
     }
 
     [Fact]
@@ -77,6 +127,8 @@ public sealed class PerformanceAnalysisEndpointTests(PostgresFixture postgres) :
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Equal(0, json.RootElement.GetProperty("summary").GetProperty("matchesAnalysed").GetInt32());
         Assert.Empty(json.RootElement.GetProperty("insights").EnumerateArray());
+        Assert.Empty(json.RootElement.GetProperty("recommendations").EnumerateArray());
+        Assert.False(json.RootElement.GetProperty("coachReport").GetProperty("generatedByAi").GetBoolean());
         Assert.Empty(json.RootElement.GetProperty("champions").EnumerateArray());
         Assert.Empty(json.RootElement.GetProperty("recentMatches").EnumerateArray());
     }
@@ -96,13 +148,14 @@ public sealed class PerformanceAnalysisEndpointTests(PostgresFixture postgres) :
 
     private async Task<Player> SavePlayerWithMatchesAsync()
     {
-        var player = await SavePlayerAsync("analysis-puuid");
+        var suffix = Guid.NewGuid().ToString("N");
+        var player = await SavePlayerAsync($"analysis-puuid-{suffix}");
         await using var db = postgres.CreateContext();
-        db.Matches.Add(CreateMatch("BR1_analysis_1", player.Id, "Ahri", false, 1, 8, 3, 110, 9_000, 6,
+        db.Matches.Add(CreateMatch($"BR1_analysis_1_{suffix}", player.Id, "Ahri", false, 1, 8, 3, 110, 9_000, 6,
             1800, DateTimeOffset.Parse("2026-09-01T00:00:00Z")));
-        db.Matches.Add(CreateMatch("BR1_analysis_2", player.Id, "Jinx", true, 3, 7, 4, 125, 10_500, 7,
+        db.Matches.Add(CreateMatch($"BR1_analysis_2_{suffix}", player.Id, "Jinx", true, 3, 7, 4, 125, 10_500, 7,
             1800, DateTimeOffset.Parse("2026-09-02T00:00:00Z")));
-        db.Matches.Add(CreateMatch("BR1_analysis_3", player.Id, "Lux", false, 2, 9, 5, 100, 8_000, 5,
+        db.Matches.Add(CreateMatch($"BR1_analysis_3_{suffix}", player.Id, "Lux", false, 2, 9, 5, 100, 8_000, 5,
             1800, DateTimeOffset.Parse("2026-09-03T00:00:00Z")));
         await db.SaveChangesAsync();
         return player;
