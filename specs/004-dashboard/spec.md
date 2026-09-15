@@ -1,7 +1,7 @@
 ---
 id: 004
 name: dashboard
-status: REVIEW
+status: DONE
 depends_on:
   - 003
 ---

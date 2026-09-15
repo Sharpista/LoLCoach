@@ -15,7 +15,7 @@
 
 ## Rastreabilidade
 
-Estado: REVIEW — promovido de READY na branch de fechamento `chore/004-dashboard-spec-done` (base `634a729`).
+Estado: DONE — READY -> REVIEW -> DONE na branch de fechamento `chore/004-dashboard-spec-done` (base `634a729`).
 
 - Implementação entregue: PR #13 (`feat/004-dashboard-integration`), merge `634a729` em `develop`.
 - Código correspondente por task:
@@ -25,4 +25,6 @@ Estado: REVIEW — promovido de READY na branch de fechamento `chore/004-dashboa
 - CI do PR #13: workflow `Build e teste do frontend` passou (runs 34917677312 e 34917685150).
 - QA formal: APROVADO, nenhum bug funcional encontrado; contrato HTTP conferido campo a campo contra `PerformanceAnalysisDto` (Spec 003) e estados `loading`, `ready`, `not-found`, `no-matches` e `error` validados.
 - Revalidação local desta branch (base `634a729`): frontend 5 arquivos / 24 testes passando; backend `dotnet build` 0 warnings / 0 errors e 67/67 testes passando.
-- Promoção para DONE: condicionada à aprovação do code review, conforme `AGENTS.md` e `orchestrator/ORCHESTRATOR.md` (passo 12).
+- Code review: APROVADO, nenhum achado bloqueante. Sugestões não bloqueantes registradas no PR de fechamento.
+- Promoção para DONE: executada após QA e code review aprovados, conforme `AGENTS.md` e `orchestrator/ORCHESTRATOR.md` (passo 12).
+- Evidências versionadas nesta branch: `specs/004-dashboard/evidence/qa-validation-report.md` (QA formal) e `specs/004-dashboard/evidence/frontend-verification-634a729.md` (revalidação independente do frontend na base `634a729`).
