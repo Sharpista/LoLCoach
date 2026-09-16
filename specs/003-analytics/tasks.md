@@ -36,4 +36,14 @@ Estado: DONE — `READY -> REVIEW -> DONE`. Promoção para DONE na branch `chor
 - Consumo posterior: o mesmo endpoint passou a devolver `recommendations` e `coachReport` nas specs 005 e 006, sem quebrar o contrato anterior.
 - CI `backend-ci`: SUCCESS no head do PR (`fe850f2`, evento `pull_request`) e no commit de merge em `develop` (`b875658`, evento `push`).
 - Verificação independente do agente `github-profile` no head atual de `develop` (`8be530d`): `dotnet build` 0 warnings / 0 errors e `dotnet test` 75/75 passando, incluindo as suítes desta spec.
-- Ressalva de rastreabilidade: o PR #12 registrou a promoção para `REVIEW` e não há parecer de QA/code review versionado para esta spec; a promoção para DONE foi feita sobre a evidência de código, CI verde, testes reproduzidos e o merge aceito, não sobre um parecer formal arquivado.
+
+### Pareceres formais (consolidação Specs 002 e 003)
+
+A ressalva anterior — ausência de parecer formal arquivado — está resolvida: os quatro pareceres foram produzidos e versionados na branch de consolidação `docs/formal-qa-review-002-003`, e nenhum deles é bloqueante ou pede correção.
+
+- QA da Spec 003 — `specs/003-analytics/evidence/qa-validation-report.md` (origem `qa/formal-spec-003` @ `fc5b773`, validador `qualidade`): **APROVADO**.
+- Code review da Spec 003 — `specs/003-analytics/evidence/code-review-report.md` (origem `review/formal-spec-003` @ `d848031`, revisor `code-reviewer`): **APROVADO**; 6 achados menores como follow-up para `dev-backend` (o principal: cobrir determinismo no pipeline completo), nenhum bloqueante.
+- QA da Spec 002 — `specs/002-match-import/evidence/qa-validation-report.md` (origem `qa/formal-spec-002` @ `1612d6b`, validador `qualidade`): **APROVADO**.
+- Code review da Spec 002 — `specs/002-match-import/evidence/code-review-report.md` (origem `review/formal-spec-002` @ `a1a40dc`, revisor `code-reviewer`): **APROVADO**; 3 sugestões não bloqueantes.
+
+Status da spec: **DONE** — `READY -> REVIEW -> DONE`, agora sustentado por parecer formal de QA e de code review em `specs/003-analytics/evidence/`.
