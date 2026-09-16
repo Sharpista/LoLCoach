@@ -177,7 +177,7 @@ private const int InsightLimit = 3;
 ```
 dotnet build:  0 Warning(s), 0 Error(s)
 dotnet test (Spec 003):  Passed: 12, Failed: 0, Skipped: 0, Total: 12
-dotnet test (全套):      Passed: 75, Failed: 0, Skipped: 0, Total: 75
+dotnet test (suíte completa):  Passed: 75, Failed: 0, Skipped: 0, Total: 75
 ```
 
 ---
