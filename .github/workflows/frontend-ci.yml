@@ -1,10 +1,10 @@
 name: frontend-ci
 
-# SCAFFOLD — o frontend Angular AINDA NÃO existe neste repositório.
-# Os paths 'frontend/**' não correspondem a nenhum arquivo hoje, então este
-# workflow não dispara. Quando o frontend for gerado, revise e ajuste os
-# comandos abaixo conforme o projeto real (package manager, scripts do
-# package.json, runner de testes, pasta de lockfile etc.).
+# Spec 008 / T-OPS-5 - o frontend Angular 22 existe neste repositório
+# (`frontend/package.json`, `frontend/src`, `frontend/package-lock.json`).
+# As guardas `hashFiles('frontend/package.json') != ''` que pulavam os passos e
+# os comentários de "frontend ainda não existe" foram removidos: build e testes
+# rodam de verdade. Node 24 alinha com o estágio de build do Dockerfile.
 
 on:
   push:
@@ -20,42 +20,26 @@ jobs:
   build-test:
     name: Build e teste do frontend
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Guarda: enquanto o frontend não existir, os passos abaixo são pulados
-      # (skip) em vez de falhar com 'No such file or directory'. Quando o
-      # frontend Angular for criado (frontend/package.json passar a existir),
-      # remova estas condições 'if' para os passos executarem de verdade.
-      - name: Setup Node.js (LTS)
-        if: hashFiles('frontend/package.json') != ''
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 'lts/*'
-          # Ajustar quando o frontend real existir: descomente o cache e
-          # aponte para o lockfile do projeto.
-          # cache: 'npm'
-          # cache-dependency-path: 'frontend/package-lock.json'
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
 
+      # `npm ci` é determinístico e falha se o lockfile divergir do package.json.
       - name: Install dependencies
-        if: hashFiles('frontend/package.json') != ''
-        working-directory: frontend
         run: npm ci --include=dev
 
-      - name: Build
-        if: hashFiles('frontend/package.json') != ''
-        working-directory: frontend
+      - name: Build (produção)
         run: npm run build
 
-      # Opção 1: script de teste configurado no package.json.
       - name: Test
-        if: hashFiles('frontend/package.json') != ''
-        working-directory: frontend
         run: npm test
-
-      # Opção 2 (alternativa): Karma + ChromeHeadless no Angular.
-      # Descomente se preferir chamar o ng test diretamente.
-      # - name: Test (Angular + ChromeHeadless)
-      #   working-directory: frontend
-      #   run: npx ng test --watch=false --browsers=ChromeHeadless
