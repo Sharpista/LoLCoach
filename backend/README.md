@@ -72,10 +72,9 @@ Selecione porta livre. O host expõe a documentação e `POST /api/players/searc
 - xUnit/Test SDK/runner: execução de testes; coverlet veio do template para coleta opcional (nenhum percentual alegado).
 - Microsoft.AspNetCore.Mvc.Testing 10.0.0: composição real da API em TestServer.
 - Testcontainers.PostgreSql 4.15.0: PostgreSQL descartável, verificação do índice e concorrência. A tentativa inicial 4.7.0 trouxe SSH.NET vulnerável; versão atualizada removeu o alerta sem suprimir auditoria.
-- FluentValidation/HttpClientFactory serão usados no fluxo bloqueado; sem dependências ociosas adicionadas agora.
+- FluentValidation e HttpClientFactory são usados nos fluxos de busca e importação; o AI Coach usa um `HttpClient` configurado para o provedor Gemini.
 
 ## Evidência e limites
 
 Ver `VERIFICATION.md`. Artefatos de execução ficam ignorados em `artifacts/`; não são secrets nem parte do código.
-Não há integração Riot real ou fake aprovada nesta entrega. Testes usam **dados sintéticos de conta** diretamente na camada de persistência; não simulam resposta HTTP da Riot.
-Frontend, QA e code review pendentes. Não marcar a feature DONE/REVIEW enquanto faltar implementação.
+Os testes de integração usam clientes fake e dados sintéticos; não fazem chamadas reais à Riot ou ao Gemini. As implementações de busca, importação, analytics, dashboard, recomendações, AI Coach e Swagger possuem rastreamento e evidências nas respectivas specs em `../specs/`.

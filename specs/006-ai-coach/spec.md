@@ -44,8 +44,8 @@ A IA não deve:
 
 ## Decisões
 
-- LLM do AI Coach: **Gemini 3.8** (provedor decidido pelo produto). O identificador exato do modelo (ex.: `gemini-3.8-*`) deve ser confirmado na implementação sem alterar o contrato de domínio.
+- LLM do AI Coach: **Gemini 3.8**, usando o identificador configurado `gemini-3.8` (provedor decidido pelo produto).
 
 ## Open Questions
 
-Nenhuma bloqueante. O identificador exato do modelo Gemini 3.8 pode ser definido na implementação.
+Nenhuma.
