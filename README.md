@@ -40,6 +40,10 @@ Projeto pessoal para analisar partidas de League of Legends e gerar pontos de me
     spec.md
     design.md
     tasks.md
+  /007-swagger
+    spec.md
+    design.md
+    tasks.md
 /orchestrator
   ORCHESTRATOR.md
 AGENTS.md
@@ -59,6 +63,7 @@ O projeto usa um fluxo spec-driven documentado em [`specs/README.md`](specs/READ
 4. 004-dashboard
 5. 005-recommendations
 6. 006-ai-coach
+7. 007-swagger
 
 As specs 001–007 existentes são a fonte de verdade do comportamento já decidido. Uma nova mudança deve criar ou atualizar a spec correspondente antes do código.
 
