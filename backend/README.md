@@ -49,6 +49,30 @@ dotnet ef database update --project src/LoLCoach.Api
 
 Migration nova: `20260911183231_InitialPlayers`. Testes aplicam via `Database.MigrateAsync`, nunca `EnsureCreated`, e conferem ausência de model drift. O startup não migra nem abre conexão automaticamente. A factory design-time exige env; não carrega secrets de outros projetos.
 
+### Migrações em produção (deploy)
+
+Em produção a migração **não** roda no deploy nem no startup: é um passo manual,
+auditável e forward-only, disparado por um operador pelo workflow `migrate`
+(`.github/workflows/migrate.yml`, somente `workflow_dispatch`). O job `script` gera o SQL
+idempotente com uma connection string sintética (não abre conexão) e publica o arquivo
+como artefato de revisão; o job `apply` roda no GitHub Environment `production`, recebe o
+secret `CONNECTIONSTRINGS__LOLCOACH` e aplica apenas o que falta (`dotnet ef database
+update`). Nenhum passo de `.github/workflows/deploy.yml` invoca esse workflow. Migração já
+aplicada nunca é editada: a correção é sempre uma migração nova.
+
+O procedimento operacional completo (primeiro deploy, variáveis, canário, rollback e
+rotação de secrets) está em [`../specs/008-railway-deploy/runbook.md`](../specs/008-railway-deploy/runbook.md).
+
+### Runtime em produção
+
+O contêiner publica com `ASPNETCORE_ENVIRONMENT=Production` e recebe
+`ConnectionStrings__LoLCoach` por variável de ambiente da plataforma — nunca de
+`appsettings*.json`, arquivo ou repositório. A porta vem de `PORT` (fallback local `8080`);
+o healthcheck do deploy usa `/health` (liveness, sem banco) e `/health/ready` (200/503) fica
+para monitoramento externo. Swagger permanece desligado fora de Development. A imagem única
+(API + SPA no mesmo contêiner) é construída pelo `Dockerfile` da raiz; a documentação lista
+apenas **nomes** de variáveis e secrets, sem valores.
+
 Para iniciar em Development e acessar a documentação (não exige banco ou chave para abrir o Swagger):
 
 ```bash
