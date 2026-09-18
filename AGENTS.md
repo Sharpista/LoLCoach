@@ -18,6 +18,8 @@ Nenhum agente deve implementar uma feature sem que existam:
 - `tasks.md`
 - seção `Open Questions` sem pendências
 
+Para ideias ainda ambíguas, faça primeiro descoberta de produto e mapeamento de suposições. Só depois transforme o resultado em `spec.md`; antes de `READY`, faça uma revisão red team da especificação. Use `specs/README.md` como roteiro.
+
 ## Fluxo obrigatório
 
 ```text
@@ -41,6 +43,12 @@ REQUEST -> IMPLEMENT
 - Se uma dúvida alterar regra de negócio ou arquitetura, registrar em `Open Questions` e bloquear a implementação.
 - Uma task só é concluída quando houver código correspondente, build válido e testes aplicáveis passando.
 - Code review só começa após todas as tasks de implementação estarem concluídas e os testes passarem.
+- Features de frontend devem consultar `.hermes/DESIGN.md`, registrar o brief visual em `design.md` e validar acessibilidade, estados de erro e comportamento responsivo.
+- Use cenários de teste derivados dos critérios de aceitação; para UI, valide também no navegador quando a mudança depender de layout, interação ou estados visuais.
+- Falhas devem seguir diagnóstico sistemático antes de alterar código. Não mascarar erro com retry, fallback ou mudança de teste sem registrar a causa.
+- Antes de deploy, conferir configuração, segredos, migrações, rollback e observabilidade. Após deploy, executar o canário definido na task e registrar o resultado.
+- Antes da revisão final, executar uma passagem de annealing: remover complexidade acidental, duplicação, TODO sem issue e código morto sem mudar o escopo.
+- Revisões de segurança devem procurar vazamento de segredo, PII, logs sensíveis, autorização, validação de entrada e dependências; contexto e limitações devem ficar registrados na evidência.
 
 ## Estados
 

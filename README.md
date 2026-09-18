@@ -43,7 +43,13 @@ Projeto pessoal para analisar partidas de League of Legends e gerar pontos de me
 /orchestrator
   ORCHESTRATOR.md
 AGENTS.md
+.hermes
+  DESIGN.md
 ```
+
+## Protocolo de desenvolvimento
+
+O projeto usa um fluxo spec-driven documentado em [`specs/README.md`](specs/README.md). Ideias passam por descoberta, suposições e revisão red team antes de virar uma spec `READY`; implementação, testes, acessibilidade, segurança e operação precisam deixar evidência reproduzível. O contrato visual do frontend está em [`.hermes/DESIGN.md`](.hermes/DESIGN.md).
 
 ## Ordem recomendada
 
@@ -53,6 +59,8 @@ AGENTS.md
 4. 004-dashboard
 5. 005-recommendations
 6. 006-ai-coach
+
+As specs 001–007 existentes são a fonte de verdade do comportamento já decidido. Uma nova mudança deve criar ou atualizar a spec correspondente antes do código.
 
 A IA não deve analisar diretamente o JSON bruto da Riot. Primeiro normalize os dados, calcule métricas e gere insights determinísticos; somente então use um LLM para explicar os resultados.
 
