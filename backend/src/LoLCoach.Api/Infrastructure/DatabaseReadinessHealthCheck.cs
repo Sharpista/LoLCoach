@@ -8,7 +8,15 @@ public sealed class DatabaseReadinessHealthCheck(PlayerDbContext db) : IHealthCh
         HealthCheckContext context,
         CancellationToken cancellationToken = default)
     {
-        var canConnect = await db.Database.CanConnectAsync(cancellationToken);
+        bool canConnect;
+        try
+        {
+            canConnect = await db.Database.CanConnectAsync(cancellationToken);
+        }
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            return HealthCheckResult.Unhealthy("PostgreSQL is unreachable.");
+        }
 
         return canConnect
             ? HealthCheckResult.Healthy("PostgreSQL is reachable.")

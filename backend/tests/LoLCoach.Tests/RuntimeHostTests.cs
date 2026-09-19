@@ -99,6 +99,23 @@ public sealed class RuntimeHostTests(PostgresFixture postgres) : IClassFixture<P
     }
 
     [Fact]
+    public async Task Readiness_returns_503_when_database_connection_string_throws()
+    {
+        await using var factory = CreateFactory("Host=127.0.0.1;Port=not-a-port;Database=lolcoach_no_connection;Username=test;Password=secret-do-not-log");
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/health/ready");
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("unhealthy", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("secret-do-not-log", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Username=test", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Port=not-a-port", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Readiness_returns_200_with_database_connectivity()
     {
         await using var factory = CreateFactory(postgres.ConnectionString);
