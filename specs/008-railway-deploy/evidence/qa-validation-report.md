@@ -223,3 +223,115 @@ GET /player/test-guid-123 → 200 text/html (SPA fallback funciona com deep-link
 ## Próximo passo
 
 Recomendado: dev-backend corrige `DatabaseReadinessHealthCheck` para capturar exceção e retornar `HealthCheckResult.Unhealthy()`. Após correção, QA revalida AC4. O veredito pode ser mantido como APROVADO com a ressalva de que o bug é de severidade média e não bloqueia o deploy.
+
+---
+
+## Revalidação — SHA 227099e (2026-09-19 02:30 UTC)
+
+| Campo | Valor |
+|---|---|
+| Data | 2026-09-19 02:30 UTC |
+| SHA revalidado | `227099e70bad7a92c3cc841f0d15dc4f8d38f817` |
+| Branch | `integration/008-spec-deploy` |
+| Workspace | `/home/alexandre/LoLSaas/.worktrees/spec008-integration` |
+| Docker image | `lolcoach:reval` (build local a partir do SHA 227099e) |
+| Ambiente | Local (Docker 29.8.0, Linux 6.8.0-139-generic) |
+| Responsável | qualidade (profile Hermes) |
+
+### Motivo
+
+Revalidar AC4 (foco principal) — que falhou na primeira passada com HTTP 500 em vez de 503 — após o fix `6047dc7` (try/catch em `DatabaseReadinessHealthCheck` retornando `HealthCheckResult.Unhealthy`). Confirmar que a correção não causou regressão e validar a nova redação de AC2.
+
+### Veredito: APROVADO
+
+AC4 agora retorna 503 corretamente em contêiner. Todos os demais ACs permanecem verdes. O bug original está corrigido.
+
+---
+
+### AC4 — Health readiness (executado: passou)
+
+```
+SHA fix: 6047dc7 (try/catch em DatabaseReadinessHealthCheck)
+Imagem: lolcoach:reval (build a partir de 227099e)
+
+Comando: docker run -d --name test-health \
+  -e ASPNETCORE_ENVIRONMENT=Production \
+  -e ConnectionStrings__LoLCoach="Host=127.0.0.1;Port=9999;Database=x;Username=x;Password=x" \
+  -p 8081:8080 lolcoach:reval
+
+Resultado:
+  GET /health/ready → HTTP 503 {"status":"unhealthy"}  (esperado: 503) ✓
+  GET /health       → HTTP 200 {"status":"healthy"}    (esperado: 200) ✓
+```
+
+**Comparação com primeira passada:**
+- Antes (SHA 05159e6): `/health/ready` → 500 (exceção não tratada)
+- Depois (SHA 227099e): `/health/ready` → 503 (fix aplicado, `HealthCheckResult.Unhealthy` ativado)
+
+### AC2 — Imagem final sem SDK/Node/não-root (executado: passou — nova redação)
+
+```
+Comando: docker exec test-health sh -c "dotnet --list-sdks"
+Resultado: (vazio — nenhum SDK instalado) ✓
+
+Comando: docker exec test-health sh -c "which node"
+Resultado: exit 1 (não encontrado) ✓
+
+Comando: docker exec test-health sh -c "which npm"
+Resultado: exit 1 (não encontrado) ✓
+
+Comando: docker exec test-health sh -c "whoami"
+Resultado: app (usuário não-root) ✓
+```
+
+### Não regressão — AC3, AC11, AC16 (executado: passou)
+
+```
+AC3 — Health e SPA:
+  GET /health                    → 200 {"status":"healthy"}
+  GET /                          → 200 text/html
+  GET /player/test-guid-123      → 200 text/html
+  GET /api/rota-inexistente      → 404 ProblemDetails
+
+AC11 — Banco vazio (sem migração automática):
+  Logs do contêiner: nenhuma ocorrência de "migration", "applying" ou "migrate"
+  GET /health → 200 (subida não bloqueada)
+
+AC16 — PORT injetada:
+  PORT=9999: /health → 200 na porta 9999; porta 8080 não escuta (connection refused)
+```
+
+### Higiene da correção (executado: passou)
+
+```
+Resposta de /health/ready (503):
+  Body: {"status":"unhealthy"} — sem connection string, host, porta ou usuário
+
+Logs do contêiner (connection string inválida):
+  grep "host=\|password=\|username=\|127.0.0.1:9999" → nenhum resultado
+  Nenhum vazamento de credenciais no corpo da resposta nem nos logs.
+```
+
+### Não regressão — Build/testes (executado: passou)
+
+```
+dotnet build backend/LoLCoach.slnx   → 0 warnings, 0 errors
+dotnet test backend/LoLCoach.slnx    → 83/83 passed (0 failed, 0 skipped)
+bash backend/scripts/verify.sh       → exit 0 (build + testes + format + audit + smoke)
+Frontend: ng test --watch=false      → 5 files, 24 tests, ALL PASSED
+```
+
+### Contadores da revalidação
+
+| Categoria | Quantidade |
+|---|---|
+| Executado: passou | 6 (AC4, AC2, AC3, AC11, AC16, higiene) |
+| Build/testes | 83/83 backend, 24/24 frontend |
+| Executado: falhou | 0 |
+| Não executado | 0 |
+| Bugs novos | 0 |
+
+### Limitações mantidas da primeira passada
+
+1. **AC14 parcial:** `railway config plan` não executado (sem CLI/token).
+2. **R7.3 revisores obrigatórios:** `protection_rules: []` no GitHub Environment.
