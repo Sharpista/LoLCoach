@@ -121,7 +121,7 @@ Definir o contrato verificável de empacotamento e publicação do MVP LoLCoach 
 ## Critérios de aceitação
 
 - **AC1** `docker build -t lolcoach:local .` conclui sem erro a partir da raiz.
-- **AC2** A imagem final não contém Node/npm nem SDK .NET (`docker run --rm lolcoach:local which node` e `which dotnet` não encontram binários) e a aplicação sobe na base `aspnet:10.0`.
+- **AC2** A imagem final não contém SDK .NET, Node nem npm (`dotnet --list-sdks` vazio; `which node` e `which npm` não encontram binários); a aplicação sobe na base `aspnet:10.0` com o runtime necessário.
 - **AC3** Com `ASPNETCORE_ENVIRONMENT=Production` e connection string válida: `GET /health` → `200 {"status":"healthy"}`; `GET /` → `200 text/html`; `GET /player/<guid>` → `200 text/html`; `GET /api/rota-inexistente` → `404` JSON.
 - **AC4** `GET /health/ready` → `200` com banco alcançável e `503` com connection string inválida, permanecendo `/health` em `200` nos dois casos.
 - **AC5** Requisição com `Origin: https://evil.example` não retorna `Access-Control-Allow-Origin`.

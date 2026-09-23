@@ -5,7 +5,10 @@ using LoLCoach.Api.Analytics.Metrics;
 using LoLCoach.Api.Analytics.Recommendations;
 using LoLCoach.Api.Application;
 using LoLCoach.Api.Infrastructure;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi.Models;
 
 const string CorsPolicyName = "AllowedOrigins";
@@ -18,6 +21,8 @@ builder.Services.AddProblemDetails(options =>
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddHealthChecks()
+    .AddCheck<DatabaseReadinessHealthCheck>("postgresql", tags: ["ready"]);
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
@@ -96,6 +101,14 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+if (app.Configuration.GetValue<bool>("ASPNETCORE_FORWARDEDHEADERS_ENABLED"))
+{
+    app.UseForwardedHeaders(new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+    });
+}
+
 app.UseExceptionHandler();
 
 var swaggerEnabled = app.Environment.IsDevelopment() ||
@@ -106,10 +119,38 @@ if (swaggerEnabled)
     app.UseSwaggerUI(options => options.SwaggerEndpoint("/swagger/v1/swagger.json", "LoLCoach API v1"));
 }
 
+app.UseStaticFiles();
 app.UseRouting();
 app.UseCors(CorsPolicyName);
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    Predicate = _ => false,
+    ResponseWriter = WriteHealthResponseAsync,
+});
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready"),
+    ResponseWriter = WriteHealthResponseAsync,
+    ResultStatusCodes =
+    {
+        [HealthStatus.Healthy] = StatusCodes.Status200OK,
+        [HealthStatus.Degraded] = StatusCodes.Status503ServiceUnavailable,
+        [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable,
+    },
+});
 app.MapControllers();
+app.Map("/api/{**rest}", () => Results.Problem(
+    statusCode: StatusCodes.Status404NotFound,
+    title: "Not Found",
+    type: "https://tools.ietf.org/html/rfc9110#section-15.5.5"));
+app.MapFallbackToFile("index.html");
 app.Run();
+
+static Task WriteHealthResponseAsync(HttpContext context, HealthReport report)
+{
+    context.Response.ContentType = "application/json";
+    return context.Response.WriteAsJsonAsync(new { status = report.Status.ToString().ToLowerInvariant() });
+}
 
 static string[] GetAllowedOrigins(WebApplicationBuilder builder)
 {
