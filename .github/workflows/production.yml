@@ -1,0 +1,41 @@
+name: production
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    environment:
+      name: production
+
+    env:
+      ASPNETCORE_ENVIRONMENT: Production
+
+      SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
+
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      CONNECTIONSTRINGS__LOLCOACH: ${{ secrets.CONNECTIONSTRINGS__LOLCOACH }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore backend/LoLCoach.slnx
+
+      - name: Build
+        run: dotnet build backend/LoLCoach.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test backend/LoLCoach.slnx --configuration Release --no-build
