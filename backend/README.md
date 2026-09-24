@@ -1,7 +1,6 @@
-# LoLCoach backend — entrega parcial, spec 001 BLOCKED
+# LoLCoach backend — API .NET 10
 
-Base de persistência executável em .NET 10. **POST /api/players/search ainda não existe.**
-As Open Questions em `../specs/001-player-search/spec.md` precisam de decisão sobre `region` e validação de IDs legados antes de implementar o fluxo dependente.
+A API inclui `POST /api/players/search` e documentação OpenAPI/Swagger. As regras da busca estão em `../specs/001-player-search/`; a documentação da API está em `../specs/007-swagger/`.
 
 ## Executar verificação reproduzível
 
@@ -50,13 +49,40 @@ dotnet ef database update --project src/LoLCoach.Api
 
 Migration nova: `20260911183231_InitialPlayers`. Testes aplicam via `Database.MigrateAsync`, nunca `EnsureCreated`, e conferem ausência de model drift. O startup não migra nem abre conexão automaticamente. A factory design-time exige env; não carrega secrets de outros projetos.
 
-Para iniciar apenas o host base, sem banco/key:
+### Migrações em produção (deploy)
+
+Em produção a migração **não** roda no deploy nem no startup: é um passo manual,
+auditável e forward-only, disparado por um operador pelo workflow `migrate`
+(`.github/workflows/migrate.yml`, somente `workflow_dispatch`). O job `script` gera o SQL
+idempotente com uma connection string sintética (não abre conexão) e publica o arquivo
+como artefato de revisão; o job `apply` roda no GitHub Environment `production`, recebe o
+secret `CONNECTIONSTRINGS__LOLCOACH` e aplica apenas o que falta (`dotnet ef database
+update`). Nenhum passo de `.github/workflows/deploy.yml` invoca esse workflow. Migração já
+aplicada nunca é editada: a correção é sempre uma migração nova.
+
+O procedimento operacional completo (primeiro deploy, variáveis, canário, rollback e
+rotação de secrets) está em [`../specs/008-railway-deploy/runbook.md`](../specs/008-railway-deploy/runbook.md).
+
+### Runtime em produção
+
+O contêiner publica com `ASPNETCORE_ENVIRONMENT=Production` e recebe
+`ConnectionStrings__LoLCoach` por variável de ambiente da plataforma — nunca de
+`appsettings*.json`, arquivo ou repositório. A porta vem de `PORT` (fallback local `8080`);
+o healthcheck do deploy usa `/health` (liveness, sem banco) e `/health/ready` (200/503) fica
+para monitoramento externo. Swagger permanece desligado fora de Development. A imagem única
+(API + SPA no mesmo contêiner) é construída pelo `Dockerfile` da raiz; a documentação lista
+apenas **nomes** de variáveis e secrets, sem valores.
+
+Para iniciar em Development e acessar a documentação (não exige banco ou chave para abrir o Swagger):
 
 ```bash
-dotnet run --project backend/src/LoLCoach.Api --no-launch-profile --urls http://127.0.0.1:5181
+dotnet run --project backend/src/LoLCoach.Api --environment Development --no-launch-profile --urls http://127.0.0.1:5181
 ```
 
-Selecione porta livre. O host não tem rotas de negócio; `/` e `/api/players/search` retornam 404 de **rota ausente**, não o 404 de jogador inexistente da spec. O script smoke usa porta efêmera, registra PID/porta/comando em `backend/artifacts/smoke-host.json` e encerra o próprio processo.
+Abra `http://127.0.0.1:5181/swagger` ou o documento em `http://127.0.0.1:5181/swagger/v1/swagger.json`. Fora de Development, mantenha Swagger desligado por padrão; para habilitar explicitamente, use `Swagger__Enabled=true` e avalie o risco de expor a superfície de documentação.
+
+
+Selecione porta livre. O host expõe a documentação e `POST /api/players/search`; sem persistência configurada, chamadas que dependem do banco falham conforme a configuração existente. O script smoke usa porta efêmera, registra PID/porta/comando em `backend/artifacts/smoke-host.json` e encerra o próprio processo.
 
 ## Estrutura e dependências
 
@@ -70,10 +96,9 @@ Selecione porta livre. O host não tem rotas de negócio; `/` e `/api/players/se
 - xUnit/Test SDK/runner: execução de testes; coverlet veio do template para coleta opcional (nenhum percentual alegado).
 - Microsoft.AspNetCore.Mvc.Testing 10.0.0: composição real da API em TestServer.
 - Testcontainers.PostgreSql 4.15.0: PostgreSQL descartável, verificação do índice e concorrência. A tentativa inicial 4.7.0 trouxe SSH.NET vulnerável; versão atualizada removeu o alerta sem suprimir auditoria.
-- FluentValidation/HttpClientFactory serão usados no fluxo bloqueado; sem dependências ociosas adicionadas agora.
+- FluentValidation e HttpClientFactory são usados nos fluxos de busca e importação; o AI Coach usa um `HttpClient` configurado para o provedor Gemini.
 
 ## Evidência e limites
 
 Ver `VERIFICATION.md`. Artefatos de execução ficam ignorados em `artifacts/`; não são secrets nem parte do código.
-Não há integração Riot real ou fake aprovada nesta entrega. Testes usam **dados sintéticos de conta** diretamente na camada de persistência; não simulam resposta HTTP da Riot.
-Frontend, QA e code review pendentes. Não marcar a feature DONE/REVIEW enquanto faltar implementação.
+Os testes de integração usam clientes fake e dados sintéticos; não fazem chamadas reais à Riot ou ao Gemini. As implementações de busca, importação, analytics, dashboard, recomendações, AI Coach e Swagger possuem rastreamento e evidências nas respectivas specs em `../specs/`.

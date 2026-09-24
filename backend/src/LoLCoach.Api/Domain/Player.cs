@@ -10,6 +10,9 @@ public sealed class Player
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset LastUpdatedAt { get; private set; }
 
+    private readonly List<PlayerMatch> _playerMatches = [];
+    public IReadOnlyCollection<PlayerMatch> PlayerMatches => _playerMatches;
+
     private Player() { }
 
     public Player(Guid id, string puuid, string gameName, string tagLine, string region,

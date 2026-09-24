@@ -11,6 +11,8 @@ Antes de delegar qualquer implementação:
 5. Validar dependências declaradas no front matter.
 6. Identificar tasks pendentes.
 
+Quando a solicitação ainda for uma ideia, interromper a delegação e conduzir descoberta, suposições e priorização. Para uma feature pronta, confirmar também revisão red team, brief visual (se houver UI), cenários de teste e critérios de observabilidade.
+
 Se houver pergunta em aberto ou dependência não concluída, definir `BLOCKED` e não implementar.
 
 ## Delegação
@@ -35,6 +37,7 @@ Se houver pergunta em aberto ou dependência não concluída, definir `BLOCKED` 
 10. Quando implementação estiver concluída, mudar para REVIEW.
 11. Delegar ao code-reviewer.
 12. Se aprovado, mudar para DONE.
+13. Executar o verification gate final: conferir diff, segurança, acessibilidade, documentação, comandos reproduzidos e riscos residuais.
 ```
 
 ## Critério de task concluída
@@ -44,6 +47,7 @@ task marcada
 + código existente
 + build válido
 + testes aplicáveis passando
++ evidência versionada
 = task concluída
 ```
 

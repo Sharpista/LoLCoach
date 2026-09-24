@@ -1,0 +1,38 @@
+# Spec 008 / T-OPS-2 - contexto mínimo do build da imagem única (API + SPA).
+#
+# O bundle Angular é reconstruído dentro da imagem (estágio `spa`), portanto
+# artefatos locais de build ficam fora do contexto. Nenhum secret entra no
+# contexto de build (R1.4).
+
+# Controle de versão e worktrees de tarefa
+.git
+.gitignore
+.worktrees
+
+# Metadados de agente/CI não usados pelo build
+.hermes
+.github
+orchestrator
+specs
+
+# Dependências e artefatos de build (qualquer nível)
+node_modules
+**/node_modules
+dist
+**/dist
+bin
+**/bin
+obj
+**/obj
+artifacts
+**/artifacts
+.angular
+**/.angular
+
+# Secrets e arquivos de ambiente - nunca no contexto (R1.5).
+# Inclui .env.example de propósito: o requisito exclui `.env*` e o build não
+# depende desse arquivo.
+.env
+.env.*
+**/.env
+**/.env.*

@@ -1,6 +1,6 @@
 # Tasks 001 - Busca de Jogador Riot
 
-Estado: BACKEND CONCLUÍDO E REVISADO; FRONTEND PENDENTE (deferido pelo usuário).
+Estado: DONE — backend e frontend concluídos, QA e code review aprovados; PR #10 merged em develop (SHA 7a33017).
 
 ## Backend
 
@@ -27,13 +27,13 @@ Estado: BACKEND CONCLUÍDO E REVISADO; FRONTEND PENDENTE (deferido pelo usuário
 - [x] Testar Riot 429.
 - [x] Testar endpoint de integração.
 
-## Frontend (deferido pelo usuário)
+## Frontend
 
-- [ ] Criar feature `player-search`.
-- [ ] Criar formulário e validações.
-- [ ] Criar serviço HTTP.
-- [ ] Implementar loading e erros.
-- [ ] Redirecionar ao dashboard.
+- [x] Criar feature `player-search`.
+- [x] Criar formulário e validações.
+- [x] Criar serviço HTTP.
+- [x] Implementar loading e erros.
+- [x] Navegar após sucesso para `/player/:id` (detalhe do jogador) — decisão registrada na spec.
 
 ## Validação funcional (QA — qualidade)
 

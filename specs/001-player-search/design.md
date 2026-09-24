@@ -124,4 +124,4 @@ Erros previstos: Problem Details (`application/problem+json`) com `type`, `title
 - https://support-leagueoflegends.riotgames.com/hc/en-us/articles/360041788533-Riot-ID-FAQ — regras de criação/alteração e taglines regionais legadas.
 - https://support-developer.riotgames.com/hc/en-us/articles/22698983117587-Summoner-Name-to-Riot-ID — gameName 3–16, tagLine 3–5, Unicode e separador `#`.
 
-QA, frontend e review pendentes. Decisões de região e normalização incorporadas nesta versão.
+QA, frontend e code review concluídos; ver o rastreamento e a verificação em `tasks.md`. As decisões de região e normalização estão incorporadas nesta versão.

@@ -1,7 +1,7 @@
 ---
 id: 004
 name: dashboard
-status: READY
+status: DONE
 depends_on:
   - 003
 ---

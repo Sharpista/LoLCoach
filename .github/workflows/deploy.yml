@@ -1,49 +1,111 @@
 name: deploy
 
-# PLACEHOLDER — pipeline de deploy ainda NÃO implementada.
+# Spec 008 / T-OPS-3 - pipeline de deploy do MVP (Railway, topologia de 1 serviço).
 #
-# TARGET PENDENTE DE DECISÃO:
-#   - Não existe Dockerfile no repositório.
-#   - Nenhum provedor de cloud/hosting foi escolhido (sem AWS/Azure/Railway/etc.).
-#   - Nenhum ambiente de homologação/produção foi definido.
+# Gatilhos (R7.2 / AC9) - SOMENTE dois, nenhum deles é `push`:
+#   1. `workflow_dispatch` executado a partir de `main`;
+#   2. publicação de uma GitHub Release não-prerelease.
+# `push` em `develop`, `homologacao` ou qualquer outra branch NÃO publica nada.
 #
-# Antes de ativar este workflow é preciso decidir:
-#   1. O que será publicado (imagem Docker? bundle .NET? build estático?).
-#   2. Onde publicar (provedor e serviço de hosting).
-#   3. Quais secrets serão necessários (credenciais de deploy/registry),
-#      sempre referenciadas como ${{ secrets.* }} — NUNCA hardcoded.
+# Autorização humana (R7.3): o job `deploy` roda no GitHub Environment
+# `production`. O Environment é a superfície de aprovação; a limitação atual de
+# revisores obrigatórios está registrada no runbook
+# (`specs/008-railway-deploy/runbook.md`, seção "Limitações conhecidas").
 #
-# Disparo: apenas manual (workflow_dispatch).
+# Auto-deploy nativo da Railway (R7.4): permanece DESABILITADO no painel. O
+# gatilho é exclusivamente este workflow - ver o runbook antes de aplicar IaC.
+#
+# Secrets: `RAILWAY_TOKEN` (Environment `production`). Nenhum valor é escrito em
+# arquivo, ecoado em log ou passado como ARG/ENV de build (R7.5 / T-OPS-7).
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
 
 jobs:
-  deploy:
-    name: Deploy (placeholder)
+  build:
+    name: Build e push da imagem (GHCR)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.ref }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ---- PASSOS A PREENCHER (ainda sem target definido) ----
+      # Tag imutável: o SHA do commit identifica commit -> imagem -> deployment
+      # (R7.6). O nome do repositório é normalizado para minúsculas porque o
+      # GHCR não aceita maiúsculas.
+      - name: Definir a referência imutável da imagem
+        id: image
+        run: echo "ref=ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
-      # 1. Build do artefato de deploy (Dockerfile ainda não existe)
-      # - name: Build image
-      #   run: docker build -t locoach:${{ github.sha }} .
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v3
 
-      # 2. Login em registry (placeholders de secret)
-      # - name: Login no registry
-      #   run: echo "${{ secrets.DEPLOY_REGISTRY_PASSWORD }}" \
-      #     | docker login -u "${{ secrets.DEPLOY_REGISTRY_USER }}" \
-      #     --password-stdin "${{ secrets.DEPLOY_REGISTRY }}"
+      - name: Login no GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 3. Publicação no provedor de destino (placeholder)
-      # - name: Deploy
-      #   run: |
-      #     echo "Deploy ainda não implementado — target pendente de decisão"
-      #     echo "Destino: ${{ secrets.DEPLOY_TARGET }}"
-      #     exit 1
+      - name: Build e push da imagem única (API + SPA)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.image.outputs.ref }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Placeholder — nada a fazer
-        run: echo "Deploy ainda não definido. Ver comentários no topo deste workflow."
+  deploy:
+    name: Deploy na Railway (Environment production)
+    needs: build
+    runs-on: ubuntu-latest
+    # Guarda explícita: dispatch apenas de `main`; release apenas não-prerelease.
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'release' && github.event.release.prerelease == false)
+    environment:
+      name: production
+    steps:
+      # O deploy usa o mesmo SHA da imagem publicada acima (o job `build` roda no
+      # mesmo commit, então a árvore é idêntica).
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Instalar Railway CLI
+        run: npm install --global @railway/cli
+
+      # Máscara explícita ANTES de qualquer uso (T-OPS-7). O valor nunca é ecoado.
+      - name: Mascarar o token da Railway
+        env:
+          RAILWAY_TOKEN_VALUE: ${{ secrets.RAILWAY_TOKEN }}
+        run: echo "::add-mask::$RAILWAY_TOKEN_VALUE"
+
+      - name: Deploy do serviço api
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          railway --version
+          railway up --service api --environment production --message "github-actions ${GITHUB_SHA}"
+
+      - name: Registrar o SHA publicado
+        run: |
+          {
+            echo "### Deploy Railway"
+            echo ""
+            echo "- commit: \`${GITHUB_SHA}\`"
+            echo "- imagem: \`${{ needs.build.outputs.image }}\`"
+            echo "- gatilho: \`${{ github.event_name }}\`"
+            echo ""
+            echo "Verificação pós-deploy obrigatória (runbook, seção 'Verificação pós-deploy')."
+          } >> "$GITHUB_STEP_SUMMARY"

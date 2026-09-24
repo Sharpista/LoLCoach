@@ -1,7 +1,7 @@
 ---
 id: 006
 name: ai-coach
-status: READY
+status: DONE
 depends_on:
   - 003
   - 005
@@ -42,6 +42,10 @@ A IA não deve:
 - Todo número apresentado no texto deve existir no payload estruturado.
 - Falha do LLM não deve impedir o dashboard determinístico de funcionar.
 
+## Decisões
+
+- LLM do AI Coach: **Gemini 3.8**, usando o identificador configurado `gemini-3.8` (provedor decidido pelo produto).
+
 ## Open Questions
 
-Nenhuma para o MVP; o provedor de LLM pode ser decidido na implementação sem alterar o contrato de domínio.
+Nenhuma.

@@ -12,6 +12,13 @@ public sealed class GlobalExceptionHandler(IProblemDetailsService problemDetails
         var problem = exception switch
         {
             SearchPlayerValidationException validation => ValidationProblem(validation),
+            PlayerNotFoundException => new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Player not found",
+                Type = "https://tools.ietf.org/html/rfc9110#section-15.5.5",
+                Detail = "No local player matches the supplied identifier.",
+            },
             RiotAccountNotFoundException => new ProblemDetails
             {
                 Status = StatusCodes.Status404NotFound,

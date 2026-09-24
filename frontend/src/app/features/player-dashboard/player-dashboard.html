@@ -1,0 +1,55 @@
+<section class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+  @if (status() === 'loading') {
+    <div class="flex max-w-2xl flex-col items-start gap-3 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm dark:border-stone-800 dark:bg-stone-900">
+      <span class="h-6 w-6 animate-spin rounded-full border-[3px] border-stone-300 border-t-amber-500 dark:border-stone-700 dark:border-t-amber-400" aria-hidden="true"></span>
+      <p class="text-stone-600 dark:text-stone-400">Carregando análise…</p>
+    </div>
+  } @else if (status() === 'not-found') {
+    <div class="flex max-w-2xl flex-col items-start gap-3 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm dark:border-stone-800 dark:bg-stone-900">
+      <span class="font-mono text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Jogador não encontrado</span>
+      <h1 class="text-2xl leading-snug">Não conseguimos localizar este jogador.</h1>
+      <p class="text-stone-600 dark:text-stone-400">
+        O ID <span class="font-mono text-xs uppercase tracking-wider text-stone-500 dark:text-stone-400">{{ playerId() }}</span> não corresponde a um
+        jogador analisado.
+      </p>
+      <a class="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-5 py-3 font-semibold text-stone-950 shadow-sm transition-colors hover:bg-amber-500" routerLink="/">Voltar à busca</a>
+    </div>
+  } @else if (status() === 'no-matches') {
+    <div class="flex max-w-2xl flex-col items-start gap-3 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm dark:border-stone-800 dark:bg-stone-900">
+      <span class="font-mono text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Sem partidas</span>
+      <h1 class="text-2xl leading-snug">Ainda não há partidas analisadas.</h1>
+      @if (dashboard(); as d) {
+        <p class="text-stone-600 dark:text-stone-400">
+          {{ d.player.gameName }}#{{ d.player.tagLine }} ainda não possui partidas
+          importadas. Assim que houver dados, a análise aparecerá aqui.
+        </p>
+      }
+      <a class="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-5 py-3 font-semibold text-stone-950 shadow-sm transition-colors hover:bg-amber-500" routerLink="/">Buscar outro jogador</a>
+    </div>
+  } @else if (status() === 'error') {
+    <div class="flex max-w-2xl flex-col items-start gap-3 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm dark:border-stone-800 dark:bg-stone-900">
+      <span class="font-mono text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Erro</span>
+      <h1 class="text-2xl leading-snug">Falha ao carregar a análise.</h1>
+      <p class="text-stone-600 dark:text-stone-400">Tente novamente em alguns instantes.</p>
+      <a class="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-5 py-3 font-semibold text-stone-950 shadow-sm transition-colors hover:bg-amber-500" routerLink="/">Voltar à busca</a>
+    </div>
+  } @else {
+    @if (dashboard(); as d) {
+      <header class="mb-8">
+        <span class="inline-flex items-center gap-1.5 rounded-full border border-amber-300/40 bg-amber-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-amber-900 dark:border-amber-500/30 dark:bg-amber-950 dark:text-amber-300">Dashboard</span>
+        <h1 class="mt-3 text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
+          {{ d.player.gameName
+          }}<span class="text-stone-400 dark:text-stone-500">#{{ d.player.tagLine }}</span>
+        </h1>
+        <p class="mt-1 font-mono text-xs uppercase tracking-wider text-stone-500 dark:text-stone-400">Plataforma {{ d.player.region | uppercase }}</p>
+      </header>
+
+      <div class="flex flex-col gap-6">
+        <app-performance-summary [summary]="d.summary" />
+        <app-insights-summary [insights]="d.insights" />
+        <app-champion-performance [champions]="d.champions" />
+        <app-recent-matches [matches]="d.recentMatches" />
+      </div>
+    }
+  }
+</section>

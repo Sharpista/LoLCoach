@@ -22,6 +22,9 @@ public sealed class SearchPlayerHandlerTests
 
         public int Count => _players.Count;
 
+        public Task<Player?> FindByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult(_players.Values.SingleOrDefault(player => player.Id == id));
+
         public Task<Player?> FindByPuuidAsync(string puuid, CancellationToken cancellationToken = default)
             => Task.FromResult(_players.TryGetValue(puuid, out var player) ? player : null);
 

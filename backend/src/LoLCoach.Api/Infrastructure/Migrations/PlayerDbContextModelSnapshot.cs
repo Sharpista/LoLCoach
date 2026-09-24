@@ -22,6 +22,44 @@ namespace LoLCoach.Api.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("LoLCoach.Api.Domain.Match", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("GameDuration")
+                        .HasColumnType("integer")
+                        .HasColumnName("game_duration");
+
+                    b.Property<string>("GameMode")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("game_mode");
+
+                    b.Property<DateTimeOffset>("GameStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("game_start");
+
+                    b.Property<int>("QueueId")
+                        .HasColumnType("integer")
+                        .HasColumnName("queue_id");
+
+                    b.Property<string>("RiotMatchId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("riot_match_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_matches");
+
+                    b.HasIndex("RiotMatchId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_matches_riot_match_id");
+
+                    b.ToTable("matches", (string)null);
+                });
+
             modelBuilder.Entity("LoLCoach.Api.Domain.Player", b =>
                 {
                     b.Property<Guid>("Id")
@@ -64,6 +102,121 @@ namespace LoLCoach.Api.Infrastructure.Migrations
                         .HasDatabaseName("ix_players_puuid");
 
                     b.ToTable("players", (string)null);
+                });
+
+            modelBuilder.Entity("LoLCoach.Api.Domain.PlayerMatch", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Assists")
+                        .HasColumnType("integer")
+                        .HasColumnName("assists");
+
+                    b.Property<int>("ChampionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("champion_id");
+
+                    b.Property<string>("ChampionName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("champion_name");
+
+                    b.Property<int>("DamageTaken")
+                        .HasColumnType("integer")
+                        .HasColumnName("damage_taken");
+
+                    b.Property<int>("DamageToChampions")
+                        .HasColumnType("integer")
+                        .HasColumnName("damage_to_champions");
+
+                    b.Property<int>("Deaths")
+                        .HasColumnType("integer")
+                        .HasColumnName("deaths");
+
+                    b.Property<int>("GoldEarned")
+                        .HasColumnType("integer")
+                        .HasColumnName("gold_earned");
+
+                    b.Property<int>("Kills")
+                        .HasColumnType("integer")
+                        .HasColumnName("kills");
+
+                    b.Property<Guid>("MatchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("match_id");
+
+                    b.Property<Guid>("PlayerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("player_id");
+
+                    b.Property<string>("TeamPosition")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("team_position");
+
+                    b.Property<int>("TotalCs")
+                        .HasColumnType("integer")
+                        .HasColumnName("total_cs");
+
+                    b.Property<int>("VisionScore")
+                        .HasColumnType("integer")
+                        .HasColumnName("vision_score");
+
+                    b.Property<int>("WardsKilled")
+                        .HasColumnType("integer")
+                        .HasColumnName("wards_killed");
+
+                    b.Property<int>("WardsPlaced")
+                        .HasColumnType("integer")
+                        .HasColumnName("wards_placed");
+
+                    b.Property<bool>("Win")
+                        .HasColumnType("boolean")
+                        .HasColumnName("win");
+
+                    b.HasKey("Id")
+                        .HasName("pk_player_matches");
+
+                    b.HasIndex("MatchId")
+                        .HasDatabaseName("ix_player_matches_match_id");
+
+                    b.HasIndex("PlayerId")
+                        .HasDatabaseName("ix_player_matches_player_id");
+
+                    b.ToTable("player_matches", (string)null);
+                });
+
+            modelBuilder.Entity("LoLCoach.Api.Domain.PlayerMatch", b =>
+                {
+                    b.HasOne("LoLCoach.Api.Domain.Match", "Match")
+                        .WithMany("PlayerMatches")
+                        .HasForeignKey("MatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_player_matches_matches_match_id");
+
+                    b.HasOne("LoLCoach.Api.Domain.Player", "Player")
+                        .WithMany("PlayerMatches")
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_player_matches_players_player_id");
+
+                    b.Navigation("Match");
+
+                    b.Navigation("Player");
+                });
+
+            modelBuilder.Entity("LoLCoach.Api.Domain.Match", b =>
+                {
+                    b.Navigation("PlayerMatches");
+                });
+
+            modelBuilder.Entity("LoLCoach.Api.Domain.Player", b =>
+                {
+                    b.Navigation("PlayerMatches");
                 });
 #pragma warning restore 612, 618
         }

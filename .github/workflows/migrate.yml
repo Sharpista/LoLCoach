@@ -1,0 +1,124 @@
+name: migrate
+
+# Spec 008 / T-OPS-4 - migrações de banco controladas (R6.2 / AC10).
+#
+# Somente `workflow_dispatch`. Este workflow NÃO é referenciado por nenhum passo
+# automático de `deploy.yml`: migração é etapa explícita, auditável e disparada
+# por um operador.
+#
+# Estrutura em dois jobs, de propósito:
+#   1. `script`  - gera o SQL idempotente SEM tocar o banco de produção e
+#                  publica o arquivo como artefato de revisão (R6.3). Não recebe
+#                  nenhum secret: a factory design-time exige a variável de
+#                  conexão, mas `migrations script` não abre conexão, então usa
+#                  um valor sintético.
+#   2. `apply`   - roda no GitHub Environment `production`, recebe
+#                  `CONNECTIONSTRINGS__LOLCOACH` por secret e aplica somente o
+#                  que falta (`database update`, forward-only - R6.4 / R8.2).
+#
+# O startup do contêiner continua sem migrar (R6.1): nada aqui é chamado pelo
+# pipeline de deploy.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmacao:
+        description: >-
+          Digite "aplicar-migracoes" para confirmar que a execução deve aplicar
+          as migrações pendentes no banco de produção.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  script:
+    name: Gerar script SQL idempotente (artefato de revisão)
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore das ferramentas locais (dotnet-ef)
+        working-directory: backend
+        run: dotnet tool restore
+
+      - name: Gerar o script idempotente
+        working-directory: backend
+        env:
+          # Valor sintético e explicitamente não secreto: a factory design-time
+          # (`PlayerDbContextFactory`) exige a variável, e a geração do script
+          # não abre conexão com o banco (o script é apenas DDL das migrações).
+          ConnectionStrings__LoLCoach: >-
+            Host=127.0.0.1;Port=5432;Database=migration-script-review-only;Username=migration-script-review-only;Password=nao-e-secret
+        run: |
+          mkdir -p artifacts
+          dotnet ef migrations script --idempotent \
+            --project src/LoLCoach.Api \
+            --startup-project src/LoLCoach.Api \
+            --output artifacts/migrations-idempotent.sql
+          echo "Linhas geradas: $(wc -l < artifacts/migrations-idempotent.sql)"
+
+      - name: Publicar o script como artefato de revisão
+        uses: actions/upload-artifact@v4
+        with:
+          name: migrations-idempotent-sql
+          path: backend/artifacts/migrations-idempotent.sql
+          if-no-files-found: error
+          retention-days: 30
+
+  apply:
+    name: Aplicar migrações (Environment production)
+    needs: script
+    runs-on: ubuntu-latest
+    # Duas guardas: só a partir de `main` e só com a confirmação digitada.
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      github.event.inputs.confirmacao == 'aplicar-migracoes'
+    environment:
+      name: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # Máscara explícita ANTES do uso (T-OPS-7); o valor nunca é ecoado.
+      - name: Mascarar a connection string
+        env:
+          CONNECTION_STRING_VALUE: ${{ secrets.CONNECTIONSTRINGS__LOLCOACH }}
+        run: echo "::add-mask::$CONNECTION_STRING_VALUE"
+
+      - name: Restore das ferramentas locais (dotnet-ef)
+        working-directory: backend
+        run: dotnet tool restore
+
+      - name: Aplicar migrações pendentes (forward-only)
+        working-directory: backend
+        env:
+          ConnectionStrings__LoLCoach: ${{ secrets.CONNECTIONSTRINGS__LOLCOACH }}
+        run: |
+          dotnet ef database update \
+            --project src/LoLCoach.Api \
+            --startup-project src/LoLCoach.Api
+
+      - name: Resumo
+        run: |
+          {
+            echo "### Migração aplicada"
+            echo ""
+            echo "- commit: \`${GITHUB_SHA}\`"
+            echo "- artefato revisado: \`migrations-idempotent-sql\` (job anterior)"
+            echo ""
+            echo "Rollback de schema é proibido (forward-fix): ver o runbook."
+          } >> "$GITHUB_STEP_SUMMARY"

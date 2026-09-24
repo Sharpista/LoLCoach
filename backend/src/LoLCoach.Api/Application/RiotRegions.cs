@@ -28,6 +28,10 @@ public static class RiotRegions
             ["vn2"] = "sea",
         };
 
+    public static IReadOnlyCollection<string> SupportedPlatforms => PlatformToRouting.Keys
+        .Order(StringComparer.Ordinal)
+        .ToArray();
+
     /// <summary>Normalizes a platform to lowercase and reports whether it is supported.</summary>
     public static bool TryNormalizePlatform(string? region, out string platform)
     {
