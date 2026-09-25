@@ -40,7 +40,7 @@ builder.Services.AddDbContext<PlayerDbContext>((services, options) =>
 {
     var connection = services.GetRequiredService<IConfiguration>().GetConnectionString("LoLCoach")
         ?? throw new InvalidOperationException("Configure ConnectionStrings__LoLCoach before using persistence.");
-    options.UseNpgsql(connection);
+    options.UseNpgsql(PostgresConnectionString.Normalize(connection));
 });
 builder.Services.AddScoped<IPlayerRepository, PlayerRepository>();
 builder.Services.AddScoped<IMatchRepository, MatchRepository>();

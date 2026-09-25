@@ -9,6 +9,7 @@ public sealed class PlayerDbContextFactory : IDesignTimeDbContextFactory<PlayerD
     {
         var connection = Environment.GetEnvironmentVariable("ConnectionStrings__LoLCoach")
             ?? throw new InvalidOperationException("Configure ConnectionStrings__LoLCoach before using EF tools.");
-        return new PlayerDbContext(new DbContextOptionsBuilder<PlayerDbContext>().UseNpgsql(connection).Options);
+        return new PlayerDbContext(new DbContextOptionsBuilder<PlayerDbContext>()
+            .UseNpgsql(PostgresConnectionString.Normalize(connection)).Options);
     }
 }
