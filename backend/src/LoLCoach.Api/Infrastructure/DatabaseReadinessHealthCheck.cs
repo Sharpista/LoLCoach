@@ -1,25 +1,27 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace LoLCoach.Api.Infrastructure;
 
-public sealed class DatabaseReadinessHealthCheck(PlayerDbContext db) : IHealthCheck
+public sealed class DatabaseReadinessHealthCheck(
+    PlayerDbContext db,
+    ILogger<DatabaseReadinessHealthCheck> logger) : IHealthCheck
 {
     public async Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,
         CancellationToken cancellationToken = default)
     {
-        bool canConnect;
         try
         {
-            canConnect = await db.Database.CanConnectAsync(cancellationToken);
+            await db.Database.OpenConnectionAsync(cancellationToken);
+            await db.Database.CloseConnectionAsync();
+            return HealthCheckResult.Healthy("PostgreSQL is reachable.");
         }
-        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
+            logger.LogError(exception, "PostgreSQL readiness check failed.");
             return HealthCheckResult.Unhealthy("PostgreSQL is unreachable.");
         }
 
-        return canConnect
-            ? HealthCheckResult.Healthy("PostgreSQL is reachable.")
-            : HealthCheckResult.Unhealthy("PostgreSQL is unreachable.");
     }
 }
