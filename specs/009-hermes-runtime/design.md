@@ -153,25 +153,80 @@ for issue in candidate_issues:
 
 ## Decisão G - Eventos e payloads
 
-Eventos são append-only e devem permitir auditoria por `run_id` sem armazenar segredo.
+Eventos são append-only e devem permitir auditoria por `run_id` sem armazenar segredo. A coluna `payload` é JSONB e deve receber objeto JSON não nulo. O writer deve normalizar payload ausente para `{}` e o reader deve tratar `NULL` legado como `{}` até todas as migrations e dados antigos estarem reconciliados.
 
-Payload permitido:
+### G1 - Modelo canônico
 
-- `commit_sha`
-- `pull_request_url`
-- `railway_deployment_id`
-- `tests_status`
-- `review_status`
-- contagens de teste, nomes de comandos e exit code
-- motivo sanitizado por código/tipo (`ExecutionBlocked`, `RunConflict`, `LockExpired`)
+```json
+{
+  "event_type": "kanban.completed",
+  "payload": {
+    "kanban_task_id": "t_12345678",
+    "status": "done",
+    "commit_sha": "0123456789abcdef0123456789abcdef01234567",
+    "tests_status": "passed",
+    "review_status": "approved"
+  }
+}
+```
 
-Payload proibido:
+Colunas (`run_id`, `linear_issue_id`, `agent`, `created_at`) continuam fonte de verdade; repeti-las no payload só é permitido quando o adapter Kanban já emite esses campos para facilitar correlação. Payloads não podem conter dados de produto ou corpo de mensagens.
 
-- connection string
-- `SUPABASE_SERVICE_ROLE_KEY`
-- token Linear/GitHub/Railway
-- stdout completo de comandos que possam conter secrets
-- raw exception message quando a origem possa embutir credenciais
+### G2 - Allowlist por evento
+
+| Evento | Campos obrigatórios | Campos opcionais |
+|---|---|---|
+| `run.created` | nenhum (`{}`) | nenhum |
+| `lock.acquired` | `ttl_seconds`, `expires_at` | nenhum |
+| `run.started` | nenhum (`{}`) | `linear_status_to`, `risk`, `execution_mode`, `environment` |
+| `agent.dispatched` | `kanban_task_id` quando já existir task | `dispatch_backend`, `status`, `assignee` |
+| `kanban.dispatched` | `kanban_task_id`, `status` | `assignee`, `run_id`, `linear_issue_id`, `agent` |
+| `kanban.status_changed` | `kanban_task_id`, `status` | `assignee`, `kanban_outcome`, `run_id`, `linear_issue_id`, `agent` |
+| `kanban.completed` | `kanban_task_id`, `status` | `commit_sha`, `pull_request_url`, `railway_deployment_id`, `tests_status`, `review_status`, `assignee`, `kanban_outcome`, `run_id`, `linear_issue_id`, `agent` |
+| `kanban.blocked` | `kanban_task_id`, `status` | `tests_status`, `review_status`, `assignee`, `kanban_outcome`, `run_id`, `linear_issue_id`, `agent` |
+| `kanban.failed` | `kanban_task_id`, `status`, `kanban_outcome` | `assignee`, `run_id`, `linear_issue_id`, `agent` |
+| `kanban.timeout` | `kanban_task_id`, `status` | `assignee`, `run_id`, `linear_issue_id`, `agent` |
+| `tests.completed` | `tests_status` | `command`, `exit_code`, `total`, `passed`, `failed`, `skipped`, `duration_ms`, `artifact_path` |
+| `review.completed` | `review_status` | `reviewer`, `artifact_path`, `pull_request_url` |
+| `deploy.requested` | `environment` | `requested_by`, `pull_request_url`, `commit_sha` |
+| `deploy.completed` | `railway_deployment_id`, `environment`, `deploy_status` | `deployment_url`, `commit_sha`, `duration_ms` |
+| `run.completed` | nenhum (`{}`) | `commit_sha`, `pull_request_url`, `railway_deployment_id`, `tests_status`, `review_status` |
+| `run.failed` | `error` | `error_code`, `kanban_task_id`, `kanban_outcome` |
+| `run.blocked` | `error` | `blocked_reason`, `kanban_task_id`, `tests_status`, `review_status` |
+| `run.canceled` | nenhum (`{}`) | `canceled_by`, `reason` |
+| `lock.released` | nenhum (`{}`) | `finished_status` |
+| `lock.rejected` | `reason` | `attempted_run_id` |
+| `lock.expired` | `expired_at` | `last_heartbeat_at`, `ttl_seconds` |
+| `lock.recovered` | nenhum (`{}`) | `recovered_by`, `previous_run_id` |
+
+### G3 - Enums e validação
+
+- `tests_status`: `passed`, `failed`, `skipped`.
+- `review_status`: `approved`, `changes_requested`, `blocked`.
+- `deploy_status`: `succeeded`, `failed`, `canceled`.
+- `environment`: `local`, `preview`, `staging`, `production`, mas `deploy.*` só aceita `preview`, `staging` ou `production` quando houver autorização própria.
+- `commit_sha`: SHA-1 hexadecimal de 40 caracteres.
+- Timestamps: ISO-8601 UTC.
+- URLs: HTTPS e sem query string sensível.
+- Campos numéricos: inteiros não negativos, exceto `exit_code` que pode refletir o processo.
+
+Campos desconhecidos devem ser rejeitados em testes de contrato ou descartados antes de persistir. Campos obrigatórios ausentes em evento aplicável devem falhar a validação do adapter/RPC, exceto `agent.dispatched` antes de task materializada, quando `{}` é permitido e um evento `kanban.dispatched` posterior deve preencher `kanban_task_id`.
+
+### G4 - Dados proibidos e redaction
+
+Payload proibido: connection string, `SUPABASE_SERVICE_ROLE_KEY`, tokens Linear/GitHub/Railway, headers/cookies, stdout/stderr bruto, stack trace bruto, payloads HTTP externos não redigidos, `.env`, logs com secrets, nomes/e-mails de usuários finais, título/descrição/comentários completos de Linear, PII de jogadores/usuários e qualquer dado de produto que não esteja na allowlist.
+
+Erros persistidos devem usar tipo/código (`ExecutionBlocked`, `RunConflict`, `LockExpired`, `TimeoutError`, `RuntimeError`) e motivo operacional curto; mensagem crua de exceção só pode ser usada depois de redaction explícito e teste que prove ausência de segredo.
+
+### G5 - Compatibilidade RPC/migration
+
+As RPCs continuam recebendo `p_fields jsonb` em `hermes_finish_run`; a implementação deve filtrar `p_fields` para campos de `agent_runs` e gravar o evento `run.<status>` com payload derivado apenas da allowlist do evento final. `hermes_claim_run` deve gravar `run.created` e `run.started` com `{}` e `lock.acquired` com `ttl_seconds`/`expires_at`. `lock.rejected`, `lock.expired` e `lock.recovered` permanecem obrigatórios porque são usados para auditoria de concorrência e recovery.
+
+Para migração reaplicável, alterar `insert into public.agent_events (...)` sem payload para inserir `payload = '{}'::jsonb` ou `jsonb_build_object(...)`, sem mudar assinatura pública das RPCs além do que já foi reconciliado pela Spec 009. Readers e queries de observabilidade devem usar `coalesce(payload, '{}'::jsonb)` durante a janela de compatibilidade.
+
+### G6 - Observabilidade de payloads
+
+Consultas e dashboards devem expor `event_type`, `payload`, `created_at` e colunas de correlação, mas views públicas ou artifacts só podem incluir payload redigido. A validação QA deve amostrar eventos de claim, dispatch, conclusão, conflito e recovery para confirmar que payload é objeto JSON, não nulo, sem campos proibidos e com campos obrigatórios por evento.
 
 ## Decisão H - Gates de qualidade e review
 

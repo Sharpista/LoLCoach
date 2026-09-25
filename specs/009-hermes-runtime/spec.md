@@ -130,9 +130,56 @@ Definir o contrato implementável para integrar o orquestrador Hermes às issues
 | `lock.released` | finalização normal |
 | `lock.expired` / `lock.recovered` | recovery |
 
-6.3 Payloads de eventos podem conter ids, SHAs, URLs de PR/deployment e status; não podem conter tokens, connection strings, service role key, raw exception com segredo ou PII desnecessária.
-6.4 Status finais aceitos no runtime: `completed`, `failed`, `blocked`, `canceled`.
-6.5 Para workers `dev-backend`, `dev-frontend` e `devops`, `ExecutionResult` precisa ter `tests_status = passed` e `review_status = approved` antes de `completed`.
+6.3 Todo evento deve persistir `payload` JSONB não nulo, usando `{}` quando o evento não exigir campos adicionais. O payload deve ser objeto JSON, nunca array, string ou blob textual.
+6.4 O contrato de payloads é fechado por tipo de evento; campos fora das listas abaixo devem ser descartados ou mover a spec de volta para `Open Questions` antes da implementação.
+
+| Evento | Payload obrigatório | Payload opcional permitido |
+|---|---|---|
+| `run.created` | `{}` | nenhum |
+| `lock.acquired` | `{"ttl_seconds": number, "expires_at": string}` | nenhum |
+| `run.started` | `{}` | `linear_status_to`, `risk`, `execution_mode`, `environment` |
+| `agent.dispatched` | `{"kanban_task_id": string}` quando houver task Kanban; `{}` apenas se o dispatch ainda não tiver task materializada | `dispatch_backend`, `status`, `assignee` |
+| `kanban.dispatched` | `{"kanban_task_id": string, "status": string}` | `assignee`, `run_id`, `linear_issue_id`, `agent` |
+| `kanban.status_changed` | `{"kanban_task_id": string, "status": string}` | `assignee`, `kanban_outcome`, `run_id`, `linear_issue_id`, `agent` |
+| `kanban.completed` | `{"kanban_task_id": string, "status": string}` | `commit_sha`, `pull_request_url`, `railway_deployment_id`, `tests_status`, `review_status`, `assignee`, `kanban_outcome`, `run_id`, `linear_issue_id`, `agent` |
+| `kanban.blocked` | `{"kanban_task_id": string, "status": string}` | `tests_status`, `review_status`, `assignee`, `kanban_outcome`, `run_id`, `linear_issue_id`, `agent` |
+| `kanban.failed` | `{"kanban_task_id": string, "status": string, "kanban_outcome": string}` | `assignee`, `run_id`, `linear_issue_id`, `agent` |
+| `kanban.timeout` | `{"kanban_task_id": string, "status": string}` | `assignee`, `run_id`, `linear_issue_id`, `agent` |
+| `tests.completed` | `{"tests_status": "passed"|"failed"|"skipped"}` | `command`, `exit_code`, `total`, `passed`, `failed`, `skipped`, `duration_ms`, `artifact_path` |
+| `review.completed` | `{"review_status": "approved"|"changes_requested"|"blocked"}` | `reviewer`, `artifact_path`, `pull_request_url` |
+| `deploy.requested` | `{"environment": "preview"|"staging"|"production"}` | `requested_by`, `pull_request_url`, `commit_sha` |
+| `deploy.completed` | `{"railway_deployment_id": string, "environment": "preview"|"staging"|"production", "deploy_status": "succeeded"|"failed"|"canceled"}` | `deployment_url`, `commit_sha`, `duration_ms` |
+| `run.completed` | `{}` | `commit_sha`, `pull_request_url`, `railway_deployment_id`, `tests_status`, `review_status` |
+| `run.failed` | `{"error": string}` | `error_code`, `kanban_task_id`, `kanban_outcome` |
+| `run.blocked` | `{"error": string}` | `blocked_reason`, `kanban_task_id`, `tests_status`, `review_status` |
+| `run.canceled` | `{}` | `canceled_by`, `reason` |
+| `lock.released` | `{}` | `finished_status` |
+| `lock.rejected` | `{"reason": "RunConflict"}` | `attempted_run_id` |
+| `lock.expired` | `{"expired_at": string}` | `last_heartbeat_at`, `ttl_seconds` |
+| `lock.recovered` | `{}` | `recovered_by`, `previous_run_id` |
+
+6.5 Tipos e formato dos campos permitidos:
+
+| Campo | Tipo/formato | Observação |
+|---|---|---|
+| `run_id` | string `run_` + ULID | permitido como redundância operacional, mas a coluna `run_id` continua fonte de verdade |
+| `linear_issue_id` | string de issue Linear (`LOL-61` ou id interno) | não incluir título/descrição da issue |
+| `agent` / `assignee` / `reviewer` | string de perfil Hermes conhecido | sem nome pessoal quando não for necessário |
+| `kanban_task_id` | string `t_...` | id interno Hermes |
+| `status`, `linear_status_to`, `deploy_status`, `tests_status`, `review_status`, `kanban_outcome` | enum declarado nesta spec/design | valores desconhecidos devem virar `blocked`/`failed` sanitizado |
+| `commit_sha` | SHA Git hexadecimal de 40 chars | não aceitar branch name no lugar de SHA |
+| `pull_request_url`, `deployment_url` | URL HTTPS pública sem token/query secreto | remover query string se houver risco de token |
+| `railway_deployment_id` | string id Railway | sem logs do deploy |
+| `ttl_seconds`, `total`, `passed`, `failed`, `skipped`, `duration_ms`, `exit_code` | number inteiro | sem stdout bruto |
+| `expires_at`, `expired_at`, `last_heartbeat_at` | timestamp ISO-8601 UTC | sem timezone local ambíguo |
+| `command` | nome/comando sanitizado | sem env vars, tokens, connection strings ou argumentos secretos |
+| `artifact_path` | caminho relativo no repo ou path de artifact não sensível | não apontar para `.env`, logs brutos ou diretórios com credenciais |
+| `error`, `error_code`, `blocked_reason`, `reason`, `canceled_by`, `requested_by`, `recovered_by` | código/tipo curto sanitizado | sem mensagem crua de exceção quando a origem puder conter segredo |
+
+6.6 Dados sempre proibidos no payload e em campos derivados: tokens Linear/GitHub/Railway, `SUPABASE_SERVICE_ROLE_KEY`, anon key quando combinada com endpoint privado, connection strings, headers HTTP, cookies, nomes/e-mails de usuários finais, título/descrição/comentários completos de Linear, stdout/stderr bruto, stack trace bruto, conteúdo de `.env`, secrets Railway/Supabase/GitHub, PII de jogadores/usuários e qualquer payload de request/resposta externa não redigido.
+6.7 Compatibilidade RPC/migration: `hermes_claim_run`, `hermes_finish_run` e `hermes_recover_expired_lock` devem gravar payloads conforme este contrato. Migrações existentes que já criam eventos sem payload devem ser ajustadas de forma reaplicável para usar `{}` e não podem quebrar readers que ainda leem payload nulo; readers devem tratar `null` legado como `{}` durante a transição.
+6.8 Status finais aceitos no runtime: `completed`, `failed`, `blocked`, `canceled`.
+6.9 Para workers `dev-backend`, `dev-frontend` e `devops`, `ExecutionResult` precisa ter `tests_status = passed` e `review_status = approved` antes de `completed`.
 
 ### R7 - GitHub, QA e review gates
 
@@ -178,10 +225,11 @@ Definir o contrato implementável para integrar o orquestrador Hermes às issues
 - AC1 `spec.md`, `design.md` e `tasks.md` existem em `specs/009-hermes-runtime/`, com `status: READY` e `Open Questions` sem pendência bloqueante.
 - AC2 A documentação declara arquitetura, boundaries e responsabilidades entre Linear, orquestrador Hermes, pacote runtime, Supabase, GitHub e Railway.
 - AC3 A documentação inclui o contrato de labels e roteamento para perfis Hermes.
-- AC4 O contrato de run lifecycle cobre claim, lock, heartbeat, finish, recovery, status finais e eventos mínimos.
+- AC4 O contrato de run lifecycle cobre claim, lock, heartbeat, finish, recovery, status finais, eventos mínimos e payload JSON permitido por evento.
 - AC5 A spec declara que a migração `sql/001_runtime_functions.sql` pertence a `devops` nesta entrega, requer autorização e não é aplicada nesta task.
 - AC6 A spec declara gates de QA/review antes de concluir código e limita deploy Railway a ação autorizada.
-- AC7 A spec explicita tratamento de segurança para service role key, tokens, logs e payloads.
+- AC7 A spec explicita tratamento de segurança para service role key, tokens, logs, payloads, PII e dados proibidos.
+- AC7.1 A documentação define compatibilidade RPC/migration para payload `{}` não nulo e leitura de payload nulo legado como `{}` durante transição.
 - AC8 `tasks.md` decompõe a implementação em tarefas por perfil com dependências e evidências esperadas.
 - AC9 Não há alteração de código runtime, migrations antigas, banco, secrets, deploy, push ou PR nesta task.
 - AC10 Evidência local registra inspeção de AGENTS/ORCHESTRATOR/specs, runtime package e estado git.
