@@ -12,6 +12,10 @@ import { DashboardError, PlayerDashboardService } from './player-dashboard.servi
  */
 @Injectable()
 export class MockPlayerDashboardService extends PlayerDashboardService {
+  override syncMatches(_playerId: string): Observable<unknown> {
+    return of(null);
+  }
+
   override getDashboard(playerId: string): Observable<PlayerDashboard> {
     if (playerId === 'not-found') {
       return throwError(() => new DashboardError('Jogador não encontrado.', 404));

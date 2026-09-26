@@ -7,7 +7,12 @@ import { DashboardError } from './player-dashboard.service';
 import { HttpPlayerDashboardService } from './http-player-dashboard.service';
 
 const sample: PlayerDashboard = {
-  player: { id: '11111111-1111-1111-1111-111111111111', gameName: 'Faker', tagLine: 'KR1', region: 'kr' },
+  player: {
+    id: '11111111-1111-1111-1111-111111111111',
+    gameName: 'Faker',
+    tagLine: 'KR1',
+    region: 'kr',
+  },
   summary: {
     matchesAnalysed: 3,
     winrate: 33.33,
@@ -16,7 +21,9 @@ const sample: PlayerDashboard = {
     visionPerMin: 0.5,
     damagePerMin: 400,
   },
-  insights: [{ id: 'high_deaths', severity: 'high', title: 'Mortes excessivas', description: '...' }],
+  insights: [
+    { id: 'high_deaths', severity: 'high', title: 'Mortes excessivas', description: '...' },
+  ],
   champions: [{ champion: 'Ahri', games: 1, winrate: 0, kda: 0.5 }],
   recentMatches: [
     {
@@ -71,6 +78,29 @@ describe('HttpPlayerDashboardService', () => {
 
     expect(err).toBeInstanceOf(DashboardError);
     expect(err?.status).toBe(404);
+  });
+
+  it('POST /api/players/{id}/matches/sync', () => {
+    service.syncMatches(sample.player.id).subscribe();
+
+    const req = httpMock.expectOne(
+      `http://localhost:5181/api/players/${sample.player.id}/matches/sync`,
+    );
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toBeNull();
+    req.flush({ imported: 1, skipped: 0, failed: 0 });
+  });
+
+  it('mapeia 503 do sync para erro acionável', () => {
+    let err: DashboardError | undefined;
+    service.syncMatches(sample.player.id).subscribe({ error: (e: DashboardError) => (err = e) });
+
+    httpMock
+      .expectOne(`http://localhost:5181/api/players/${sample.player.id}/matches/sync`)
+      .flush('unavailable', { status: 503, statusText: 'Service Unavailable' });
+
+    expect(err?.status).toBe(503);
+    expect(err?.message).toContain('Riot');
   });
 
   it('mapeia 500 para DashboardError', () => {
