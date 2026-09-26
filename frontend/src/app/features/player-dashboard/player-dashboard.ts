@@ -1,6 +1,7 @@
 import { UpperCasePipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { concatMap } from 'rxjs';
 import { PlayerDashboard as PlayerDashboardData } from '../../core/models/dashboard';
 import { PlayerDashboardService } from '../../core/services/player-dashboard.service';
 import { ChampionPerformance } from './champion-performance';
@@ -30,8 +31,13 @@ export class PlayerDashboard implements OnInit {
   readonly status = signal<DashboardStatus>('loading');
   readonly dashboard = signal<PlayerDashboardData | null>(null);
   readonly playerId = signal<string | null>(null);
+  readonly errorMessage = signal('Tente novamente em alguns instantes.');
+  private initialized = false;
 
   ngOnInit(): void {
+    if (this.initialized) return;
+    this.initialized = true;
+
     const id = this.route.snapshot.paramMap.get('id');
     this.playerId.set(id);
 
@@ -40,15 +46,19 @@ export class PlayerDashboard implements OnInit {
       return;
     }
 
-    this.service.getDashboard(id).subscribe({
-      next: (d) => {
-        this.dashboard.set(d);
-        this.status.set(d.summary.matchesAnalysed === 0 ? 'no-matches' : 'ready');
-      },
-      error: (err: unknown) => {
-        const status = (err as { status?: number })?.status;
-        this.status.set(status === 404 ? 'not-found' : 'error');
-      },
-    });
+    this.service
+      .syncMatches(id)
+      .pipe(concatMap(() => this.service.getDashboard(id)))
+      .subscribe({
+        next: (d) => {
+          this.dashboard.set(d);
+          this.status.set(d.summary.matchesAnalysed === 0 ? 'no-matches' : 'ready');
+        },
+        error: (err: unknown) => {
+          const status = (err as { status?: number })?.status;
+          this.status.set(status === 404 ? 'not-found' : 'error');
+          if (err instanceof Error && err.message) this.errorMessage.set(err.message);
+        },
+      });
   }
 }

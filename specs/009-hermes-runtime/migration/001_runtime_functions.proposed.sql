@@ -2,7 +2,7 @@
 -- These RPCs are deliberately available to service_role only. No SECURITY DEFINER.
 begin;
 
--- Re-applicable when the claim return type changes or a previous revision exists.
+-- Allows the script to be re-applied safely when function signatures or return types change.
 drop function if exists public.hermes_claim_run(text,text,text,text,text,text,integer);
 drop function if exists public.hermes_heartbeat_run(text,text,integer);
 drop function if exists public.hermes_finish_run(text,text,text,jsonb);
@@ -20,23 +20,24 @@ begin
   if p_ttl_seconds < 10 or p_ttl_seconds > 86400 then
     raise exception 'Invalid lock TTL';
   end if;
-
+  -- Serializes claims against recovery for this issue. The unique index/PK is the final guard.
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_issue_id, 0));
   v_expires_at := pg_catalog.now() + pg_catalog.make_interval(secs => p_ttl_seconds);
-
   begin
+    -- Keep the run and lock inserts in the same exception scope so either both succeed or
+    -- the conflict path returns false without leaving a partial rejected run behind.
     insert into public.agent_runs
       (run_id, linear_issue_id, agent, status, risk, execution_mode, environment)
     values (p_run_id, p_issue_id, p_agent, 'queued', p_risk, p_mode, p_environment);
-
     insert into public.agent_execution_locks
       (linear_issue_id, run_id, agent, expires_at)
     values (p_issue_id, p_run_id, p_agent, v_expires_at);
   exception when unique_violation then
+    -- The failed subtransaction rolls back the attempted insert(s). Audit the holder instead
+    -- of creating/updating a synthetic failed run for the rejected attempt.
     select l.run_id, l.agent into v_holder_run, v_holder_agent
     from public.agent_execution_locks l
     where l.linear_issue_id = p_issue_id;
-
     if v_holder_run is null then
       select r.run_id, r.agent into v_holder_run, v_holder_agent
       from public.agent_runs r
@@ -45,18 +46,16 @@ begin
       order by r.started_at desc
       limit 1;
     end if;
-
     if v_holder_run is not null then
       insert into public.agent_events (run_id, linear_issue_id, agent, event_type, payload)
       values (v_holder_run, p_issue_id, v_holder_agent, 'lock.rejected',
-              pg_catalog.jsonb_build_object('reason', 'RunConflict', 'attempted_run_id', p_run_id));
+              pg_catalog.jsonb_build_object('reason', 'RunConflict',
+                                            'attempted_run_id', p_run_id));
     end if;
     return false;
   end;
-
   update public.agent_runs set status = 'running', heartbeat_at = pg_catalog.now()
   where run_id = p_run_id and linear_issue_id = p_issue_id;
-
   insert into public.agent_events (run_id, linear_issue_id, agent, event_type, payload)
   values (p_run_id, p_issue_id, p_agent, 'run.created', '{}'::jsonb),
          (p_run_id, p_issue_id, p_agent, 'lock.acquired',
@@ -99,15 +98,14 @@ begin
   if p_status not in ('completed', 'failed', 'blocked', 'canceled') then
     raise exception 'Invalid final status';
   end if;
+  -- A non-object p_fields would make every ->> lookup unpredictable; fail before any write.
   v_fields := coalesce(p_fields, '{}'::jsonb);
   if pg_catalog.jsonb_typeof(v_fields) <> 'object' then
     raise exception 'p_fields must be a JSON object';
   end if;
-
   select agent into v_agent from public.agent_execution_locks
   where linear_issue_id = p_issue_id and run_id = p_run_id for update;
   if not found then return false; end if;
-
   update public.agent_runs set
     status = p_status,
     finished_at = pg_catalog.now(),
@@ -120,7 +118,8 @@ begin
   where run_id = p_run_id and linear_issue_id = p_issue_id
     and status in ('running', 'reviewing');
   if not found then return false; end if;
-
+  -- Payload da allowlist da Spec 009 secao 6.4 por status final; jsonb_strip_nulls evita
+  -- chaves nulas e o fallback de erro mantem um codigo curto sanitizado.
   v_payload := case p_status
     when 'completed' then pg_catalog.jsonb_strip_nulls(pg_catalog.jsonb_build_object(
       'commit_sha', v_fields->>'commit_sha',
@@ -144,7 +143,6 @@ begin
       'reason', v_fields->>'reason'))
     else '{}'::jsonb
   end;
-
   insert into public.agent_events (run_id, linear_issue_id, agent, event_type, payload)
   values (p_run_id, p_issue_id, v_agent, 'run.' || p_status, v_payload),
          (p_run_id, p_issue_id, v_agent, 'lock.released',
@@ -155,6 +153,12 @@ begin
 end;
 $$;
 
+-- 'blocked' is terminal in the runtime but remains in the partial unique index
+-- uq_agent_runs_active_issue: no new claim can enter the issue until an operator
+-- releases it. Runbook (service_role / dashboard, never by the runtime):
+--   update public.agent_runs set status = 'canceled', finished_at = now(),
+--          error = 'ReleasedByOperator'
+--   where linear_issue_id = '<ISSUE>' and status = 'blocked';
 create or replace function public.hermes_recover_expired_lock(p_issue_id text)
 returns boolean language plpgsql security invoker set search_path = '' as $$
 declare v_lock public.agent_execution_locks%rowtype;
@@ -188,6 +192,7 @@ grant execute on function public.hermes_heartbeat_run(text,text,integer) to serv
 grant execute on function public.hermes_finish_run(text,text,text,jsonb) to service_role;
 grant execute on function public.hermes_recover_expired_lock(text) to service_role;
 
+-- Harden the sequence beyond the default Supabase grants for anon/authenticated.
 revoke all on sequence public.agent_events_id_seq from anon, authenticated;
 grant usage, select on sequence public.agent_events_id_seq to service_role;
 

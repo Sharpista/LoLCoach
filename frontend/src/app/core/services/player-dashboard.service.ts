@@ -7,6 +7,7 @@ import { PlayerDashboard } from '../models/dashboard';
  * Mock permanece em `mock-player-dashboard.service.ts` para demos manuais.
  */
 export abstract class PlayerDashboardService {
+  abstract syncMatches(playerId: string): Observable<unknown>;
   abstract getDashboard(playerId: string): Observable<PlayerDashboard>;
 }
 

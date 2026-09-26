@@ -3,7 +3,10 @@ import { ActivatedRoute, provideRouter } from '@angular/router';
 import { Subject, of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlayerDashboard as PlayerDashboardData } from '../../core/models/dashboard';
-import { DashboardError, PlayerDashboardService } from '../../core/services/player-dashboard.service';
+import {
+  DashboardError,
+  PlayerDashboardService,
+} from '../../core/services/player-dashboard.service';
 import { PlayerDashboard } from './player-dashboard';
 
 function mockDashboard(): PlayerDashboardData {
@@ -24,18 +27,26 @@ function mockDashboard(): PlayerDashboardData {
     ],
     champions: [{ champion: 'Ahri', games: 8, winrate: 62.5, kda: 4.1 }],
     recentMatches: [
-      { id: 'm1', champion: 'Ahri', result: 'win', kda: '9/2/7', cs: 214, durationMinutes: 28, playedAt: '2026-09-11T20:00:00Z' },
+      {
+        id: 'm1',
+        champion: 'Ahri',
+        result: 'win',
+        kda: '9/2/7',
+        cs: 214,
+        durationMinutes: 28,
+        playedAt: '2026-09-11T20:00:00Z',
+      },
     ],
   };
 }
 
 describe('PlayerDashboard', () => {
   let routeParams: { id?: string };
-  let serviceSpy: { getDashboard: ReturnType<typeof vi.fn> };
+  let serviceSpy: { syncMatches: ReturnType<typeof vi.fn>; getDashboard: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
     routeParams = { id: 'abc' };
-    serviceSpy = { getDashboard: vi.fn() };
+    serviceSpy = { syncMatches: vi.fn(() => of(null)), getDashboard: vi.fn() };
 
     await TestBed.configureTestingModule({
       imports: [PlayerDashboard],
@@ -92,6 +103,16 @@ describe('PlayerDashboard', () => {
     expect(component.status()).toBe('not-found');
   });
 
+  it('deve sincronizar antes de buscar a análise e fazer isso uma vez', () => {
+    serviceSpy.getDashboard.mockReturnValue(of(mockDashboard()));
+    const { component } = createComponent();
+
+    component.ngOnInit();
+
+    expect(serviceSpy.syncMatches).toHaveBeenCalledOnce();
+    expect(serviceSpy.getDashboard).toHaveBeenCalledOnce();
+  });
+
   it('deve tratar estado sem partidas', () => {
     const empty = mockDashboard();
     empty.summary.matchesAnalysed = 0;
@@ -104,10 +125,20 @@ describe('PlayerDashboard', () => {
   });
 
   it('deve tratar erro externo', () => {
-    serviceSpy.getDashboard.mockReturnValue(
-      throwError(() => new DashboardError('falha', 500)),
-    );
+    serviceSpy.getDashboard.mockReturnValue(throwError(() => new DashboardError('falha', 500)));
     const { component } = createComponent();
     expect(component.status()).toBe('error');
+  });
+
+  it('deve mostrar mensagem acionável para indisponibilidade da Riot', () => {
+    serviceSpy.syncMatches.mockReturnValue(
+      throwError(() => new DashboardError('O serviço da Riot está indisponível.', 503)),
+    );
+    const { fixture, component } = createComponent();
+
+    expect(component.status()).toBe('error');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      'O serviço da Riot está indisponível.',
+    );
   });
 });
