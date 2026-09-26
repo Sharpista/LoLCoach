@@ -13,6 +13,7 @@ Complementa `spec.md` (contrato) e `tasks.md` (execução). Decisões aqui são 
 | Supabase real | Tabelas existem; funções `public.hermes_*` ausentes | `SupabaseStore.claim()` falharia hoje até a migration ser aplicada |
 | Linear | LOL-56/57/58 `Todo`, LOL-59 `Done`; labels operacionais definem roteamento | Poller deve filtrar por status/labels antes de claim |
 | Deploy Railway | Spec 008 define deploy controlado e autorizado | Runtime registra deployment id quando existir; não executa deploy por padrão |
+| Pipeline oficial LOL-63 | Linear -> Orchestrator Hermes -> contexto/memória -> Supabase -> seleção de especialista -> implementação -> qualidade -> code-reviewer -> GitHub -> Railway | A boundary runtime precisa ser composta com gates e handoffs externos, não tratada como pipeline inteiro |
 
 ## Decisão A - Boundary do runtime
 
@@ -22,9 +23,9 @@ Complementa `spec.md` (contrato) e `tasks.md` (execução). Decisões aqui são 
 Linear issue + labels
         |
         v
-Orquestrador Hermes (poll/filter/recovery)
+Orquestrador Hermes (poll/filter/context/recovery)
         |
-        | classify + execute(issue, dispatch)
+        | context bundle redigido + classify + execute(issue, dispatch)
         v
 hermes-agent-runtime
         |
@@ -32,7 +33,10 @@ hermes-agent-runtime
         v
 Supabase agent_runs / agent_execution_locks / agent_events
         |
-        +--> dispatcher Hermes instalado -> Kanban/workers -> GitHub/CI/review
+        +--> seleção de especialista -> Kanban/workers dev-backend/dev-frontend/devops
+        |        |
+        |        v
+        |     qualidade -> code-reviewer -> GitHub/CI autorizado
         |
         +--> Railway deploy apenas quando task autorizada
 ```
@@ -47,6 +51,36 @@ Supabase agent_runs / agent_execution_locks / agent_events
 | Usar apenas Kanban SQLite local como fonte de verdade | Não atende integração Linear/Supabase nem auditoria centralizada |
 | Chamar workers diretamente do poller Linear sem runtime | Perde lock transacional e recuperação de expirados |
 | Colocar runtime no LoLCoach.Api | Mistura automação operacional com produto web e exigiria service role no runtime da aplicação |
+
+## Decisão A.1 - Pipeline oficial e contratos de handoff
+
+**Escolhido:** o runtime é a fronteira transacional de run/lock/eventos, enquanto o pipeline oficial é uma composição orquestrada de handoffs verificáveis entre sistemas e perfis. Nenhuma etapa posterior pode inferir sucesso apenas de spawn ou claim; cada gate produz evidência própria.
+
+```text
+Linear Todo + labels válidos
+  -> Orchestrator valida spec/design/tasks/Open Questions/dependências
+  -> Orchestrator monta contexto/memória redigidos
+  -> Supabase claim/lock/eventos iniciais pelo runtime
+  -> seleção de especialista por label/risco/ambiente
+  -> worker implementa somente task atribuída
+  -> qualidade executa/verifica critérios de aceite
+  -> code-reviewer aprova ou pede rework
+  -> GitHub publica PR/CI somente quando autorizado
+  -> Railway faz deploy somente por task autorizada e gate de ambiente
+```
+
+| Handoff | Contrato de entrada | Contrato de saída | Gate que libera próxima etapa |
+|---|---|---|---|
+| Linear -> Orchestrator | Issue em `Todo`, labels conhecidas, link/escopo da spec | decisão `eligible`/`blocked`/`ignored` com motivo | política R1 aprovada |
+| Orchestrator -> Contexto/memória | Spec/design/tasks, AGENTS, ORCHESTRATOR, memórias OpenViking pertinentes, histórico Kanban | bundle redigido e suficiente para o worker | R11 sem dados proibidos |
+| Contexto/memória -> Supabase | `linear_issue_id`, `run_id`, `agent`, TTL e payloads permitidos | run/lock/eventos iniciais ou conflito | claim transacional aceito |
+| Supabase -> Especialista | lock ativo, labels validadas, workspace/branch | task Kanban com assignee real | task materializada e `kanban_task_id` registrado |
+| Especialista -> Qualidade | diff/SHA candidato, evidências de build/testes, limitações | relatório QA aprovado/reprovado/bloqueado | `tests_status` derivado de execução real |
+| Qualidade -> Code reviewer | relatório QA, diff/SHA, spec/design/tasks | parecer aprovado/rework/bloqueado | `review_status=approved` para concluir implementação |
+| Code reviewer -> GitHub | autorização de publicação, SHA verificável, branch limpa ou dirty state registrado | PR/checks ou bloqueio explícito | CI/checks requeridos passados quando aplicável |
+| GitHub -> Railway | task de deploy, ambiente permitido, rollback/runbook | deployment id/status redigido | autorização humana para production; preview/staging conforme contrato |
+
+Contexto e memória não entram integralmente em `agent_events.payload`; eventos persistem identificadores e status permitidos, enquanto evidências versionadas/Kanban guardam o contexto redigido necessário para auditoria.
 
 ## Decisão B - Estados e transições
 
@@ -211,6 +245,42 @@ Colunas (`run_id`, `linear_issue_id`, `agent`, `created_at`) continuam fonte de 
 - Campos numéricos: inteiros não negativos, exceto `exit_code` que pode refletir o processo.
 
 Campos desconhecidos devem ser rejeitados em testes de contrato ou descartados antes de persistir. Campos obrigatórios ausentes em evento aplicável devem falhar a validação do adapter/RPC, exceto `agent.dispatched` antes de task materializada, quando `{}` é permitido e um evento `kanban.dispatched` posterior deve preencher `kanban_task_id`.
+
+### G3.1 - Eventos acumulados, falhas eventful e ordem de persistência
+
+`AgentRuntime` deve tratar os eventos produzidos pelo adapter como uma fila ordenada por run, não como metadado acessório do sucesso. O adapter Kanban pode observar eventos úteis antes do desfecho final; esses eventos precisam sobreviver mesmo quando o desfecho é `blocked`, `failed` ou timeout.
+
+Sequência obrigatória no runtime:
+
+```text
+claim SQL grava run.created + lock.acquired + run.started
+runtime grava agent.dispatched
+dispatch/adapter acumula eventos kanban.*
+runtime valida + deduplica + persiste eventos acumulados
+runtime chama finish(status, fields) para gravar run.<status> + lock.released
+```
+
+Consequências:
+
+- `finish` não pode ser chamado antes de persistir os eventos acumulados do adapter.
+- `kanban.completed` deve ser persistido mesmo quando o gate de implementação falhar e o runtime finalizar `run.blocked` por `tests_status`/`review_status` ausente.
+- `kanban.blocked` deve ser persistido antes de `run.blocked`.
+- `kanban.failed` deve ser persistido antes de `run.failed` quando o worker terminar com outcome técnico (`failed`, `spawn_failed`, `rate_limited` etc.).
+- `kanban.timeout` deve ser persistido antes de `run.failed` com `TimeoutError` quando o adapter atingir deadline sem estado terminal.
+- Erro durante validação/persistência dos eventos acumulados impede `completed`; o run finaliza `failed` com erro sanitizado se ainda possuir o lock.
+
+Para desfechos não bem-sucedidos, o adapter deve retornar ou lançar uma estrutura eventful explícita que preserve `events` junto do tipo sanitizado do erro. A implementação pode usar exceção própria (`ExecutionEventError`, `DispatchEventError`) ou envelope equivalente, desde que `AgentRuntime` consiga extrair a lista de eventos sem ler mensagens cruas. O campo final `error`/`error_code` deve ser código curto (`ExecutionBlocked`, `RuntimeError`, `TimeoutError`, `PayloadValidationError`, `RunConflict`, `LockExpired`) e nunca `str(exc)` quando a origem puder conter segredo.
+
+Deduplicação deve acontecer depois da validação/normalização do payload e antes de chamar `store.event`. A chave canônica é:
+
+```text
+se payload.kanban_task_id existe:
+  (event_type, payload.kanban_task_id, payload.status, payload.kanban_outcome)
+caso contrário:
+  (event_type, json_payload_normalizado_com_chaves_ordenadas)
+```
+
+A primeira ocorrência vence. O algoritmo não pode reordenar eventos distintos, não pode colapsar mudanças de status diferentes e não pode mascarar payload inválido; payload inválido deve falhar antes de qualquer persistência parcial do mesmo evento.
 
 ### G4 - Dados proibidos e redaction
 

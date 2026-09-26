@@ -13,6 +13,8 @@ Regra herdada de `AGENTS.md`/`ORCHESTRATOR.md`: task marcada + artefato existent
 - [x] **T-DOC-3** Criar este `tasks.md` com decomposição por perfil, dependências e evidências.
 - [x] **T-DOC-4** Registrar evidência de inspeção em `specs/009-hermes-runtime/evidence/inspection.md`.
 - [x] **T-DOC-5** Atualizar contrato de payload JSON dos eventos: allowlist por evento, dados proibidos, compatibilidade RPC/migration, cenários de QA e evidência em `specs/009-hermes-runtime/evidence/event-payload-contract-review.md`.
+- [x] **T-DOC-6** Atualizar contrato LOL-62 para eventos acumulados em sucesso, blocked, failed e timeout; erro eventful sanitizado; ordem de persistência antes de `finish`; deduplicação; testes derivados; evidência em `specs/009-hermes-runtime/evidence/lol-62-event-accumulation-contract.md`.
+- [x] **T-DOC-7** Reconciliar LOL-63 com o pipeline oficial Linear -> Orchestrator Hermes -> contexto/memória -> Supabase -> seleção de especialista -> implementação -> qualidade -> code-reviewer -> GitHub -> Railway; registrar entradas/saídas, ownership, gaps, plano de implementação/QA e evidência em `specs/009-hermes-runtime/evidence/lol-63-pipeline-reconciliation.md`.
 
 ## 1. Banco / runtime SQL - devops
 
@@ -35,14 +37,17 @@ Regra herdada de `AGENTS.md`/`ORCHESTRATOR.md`: task marcada + artefato existent
 - [ ] **T-ORCH-6** Sanitizar erros persistidos: armazenar tipo/código, nunca mensagem crua com potencial segredo.
 - [ ] **T-ORCH-7** Configurar secrets server-side (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, tokens Linear/GitHub/Railway quando necessários) sem imprimir valores.
 - [ ] **T-ORCH-8** Adicionar testes unitários para classificação de labels, bloqueios por política, conflito de claim, gates de qualidade, recovery e sanitização/allowlist de payloads.
+- [ ] **T-ORCH-9** Adicionar testes de contrato do runtime para persistência de eventos acumulados antes de `finish` em sucesso, blocked por gate, failed, timeout e erro eventful sanitizado; confirmar deduplicação preservando ordem e primeira ocorrência.
+- [ ] **T-ORCH-10** Implementar montagem do bundle de contexto/memória redigido antes do claim/dispatch: spec/design/tasks, AGENTS/ORCHESTRATOR, memórias OpenViking pertinentes, histórico Kanban, workspace/branch e dependências; testar que secrets, PII e payload bruto de issue não entram no bundle nem em `agent_events.payload`.
+- [ ] **T-ORCH-11** Implementar estado/gate de seleção de especialista após policy e antes do dispatch, validando assignee real e bloqueando labels ambíguos/desconhecidos sem spawn.
 
 ## 3. Dispatcher Hermes / Kanban - dev-backend
 
 - [ ] **T-BE-1** Mapear o contrato do dispatcher instalado (`hermes kanban dispatch`, runs, status, exit codes, systemd scope) e documentar como o adapter obtém resultado final sem confundir spawn com sucesso.
 - [ ] **T-BE-2** Implementar a tradução Kanban -> `ExecutionResult`: `tests_status`, `review_status`, `commit_sha`, `pull_request_url`, `railway_deployment_id` quando aplicáveis, e eventos Kanban com payload restrito à allowlist da Spec 009.
-- [ ] **T-BE-3** Garantir que workers de implementação não completem runtime como `completed` sem gates exigidos; se houver filhos QA/review no Kanban, o parent libera filhos e o runtime aguarda/consulta o resultado final conforme contrato definido.
+- [ ] **T-BE-3** Garantir que workers de implementação não completem runtime como `completed` sem gates exigidos; se houver filhos QA/review no Kanban, o parent libera filhos e o runtime aguarda/consulta o resultado final conforme contrato definido. Mesmo quando o gate falhar, os eventos já acumulados pelo adapter devem ser persistidos antes de `run.blocked`/`run.failed`.
 - [ ] **T-BE-4** Adicionar logs estruturados com `run_id`, `linear_issue_id`, `agent`, `kanban_task_id` e status, sem secrets.
-- [ ] **T-BE-5** Testar adapter com store fake e dispatcher fake cobrindo sucesso, falha, bloqueio por gate ausente, perda de lock e rejeição de payload com campo proibido/desconhecido.
+- [ ] **T-BE-5** Testar adapter com store fake e dispatcher fake cobrindo sucesso, falha, bloqueio por gate ausente, timeout, perda de lock, erro eventful sanitizado, deduplicação de eventos e rejeição de payload com campo proibido/desconhecido.
 - [ ] **T-BE-6** Verificar que nenhuma alteração toca migrations antigas do LoLCoach nem código de produto .NET sem task explícita.
 
 ## 4. GitHub / CI / Review - github-profile + code-reviewer
@@ -69,6 +74,9 @@ Regra herdada de `AGENTS.md`/`ORCHESTRATOR.md`: task marcada + artefato existent
 - [ ] **T-QA-5** Validar segurança: nenhum secret em logs/eventos/erros; grants das RPCs restritos a `service_role`; tokens ausentes de artifacts.
 - [ ] **T-QA-6** Validar observabilidade: consulta por `run_id`/issue mostra eventos, último heartbeat, final status e campos GitHub/Railway quando existem.
 - [ ] **T-QA-7** Validar contrato de payloads: para `run.created`, `lock.acquired`, `agent.dispatched`/`kanban.*`, `tests.completed`, `review.completed`, `run.*`, `lock.rejected`, `lock.expired` e `lock.recovered`, payload é objeto JSON não nulo, contém obrigatórios, não contém campos proibidos e trata payload nulo legado como `{}` na leitura.
+- [ ] **T-QA-8** Validar persistência acumulada: em sucesso, blocked, failed e timeout, eventos `kanban.*` observados antes do desfecho aparecem na timeline antes de `run.<status>`/`lock.released`; duplicatas idênticas são descartadas sem reordenar eventos distintos; erros finais são códigos sanitizados.
+- [ ] **T-QA-9** Validar fluxo ponta a ponta em ambiente controlado/fake sem efeitos externos: Linear elegível -> contexto/memória redigido -> claim Supabase/store fake -> seleção de especialista -> task Kanban fake -> qualidade -> review -> GitHub/Railway simulados apenas como gates autorizados; confirmar transições e bloqueios de cada etapa.
+- [ ] **T-QA-10** Validar gaps classificados: ausência de RPCs, label inválido, bundle com dado proibido, gate QA/review ausente, PR não autorizado e deploy production sem autorização devem bloquear com owner e evidência.
 
 ## Dependências e ordem
 
@@ -77,17 +85,18 @@ T-DOC-* (feito)
   |
   +--> T-DB-1..T-DB-5 -------------+
   |                                 |
-  +--> T-ORCH-1..T-ORCH-2 ----------+--> T-ORCH-3..T-ORCH-8 --> T-BE-1..T-BE-5
+  +--> T-ORCH-1..T-ORCH-2 ----------+--> T-ORCH-3..T-ORCH-11 --> T-BE-1..T-BE-5
   |                                                                   |
   +--> T-GH-1..T-GH-3 -----------------------------------------------+
   +--> T-OPS-1..T-OPS-4 ---------------------------------------------+
                                                                       |
-                                                            T-QA-1..T-QA-6
+                                                            T-QA-1..T-QA-10
                                                                       |
                                                             T-CR-1..T-CR-2
 ```
 
 - `T-ORCH-3` depende das RPCs aplicadas (`T-DB-4/T-DB-5`) para teste com Supabase real; antes disso só pode usar store fake.
+- `T-ORCH-10/T-ORCH-11` dependem da política de labels e do contrato de contexto/memória da Spec 009; podem ser testadas com fixtures/fakes antes da migration Supabase.
 - `T-BE-2/T-BE-3` dependem do contrato observado do dispatcher (`T-BE-1`) e da forma como o Kanban representa QA/review.
 - `T-QA-*` só começa depois de banco, orquestrador, adapter, contrato de payloads e runbook suficientes existirem.
 - `T-CR-*` só começa depois de QA ou com lacuna explicitamente bloqueada.
@@ -97,6 +106,8 @@ T-DOC-* (feito)
 - `specs/009-hermes-runtime/evidence/db-runtime-functions.md` com probes e aplicação SQL redigidos.
 - `specs/009-hermes-runtime/evidence/orchestrator-adapter-verification.md` com testes unitários/smoke do adapter.
 - `specs/009-hermes-runtime/evidence/event-payload-contract-review.md` com revisão estática do contrato de payloads, campos proibidos, compatibilidade RPC/migration e cenários QA.
+- `specs/009-hermes-runtime/evidence/lol-62-event-accumulation-contract.md` com revisão estática do contrato de eventos acumulados, erro eventful, deduplicação e ordem antes de `finish`.
+- `specs/009-hermes-runtime/evidence/lol-63-pipeline-reconciliation.md` com evidência da reconciliação documental do pipeline oficial, gaps, plano de implementação/QA e estado git/SHA.
 - `specs/009-hermes-runtime/evidence/qa-validation-report.md` com validação dos critérios QA.
 - `specs/009-hermes-runtime/evidence/code-review-report.md` com parecer final.
 - Runbook operacional citado por `T-OPS-4`.
