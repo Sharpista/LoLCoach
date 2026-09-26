@@ -3,7 +3,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { concatMap } from 'rxjs';
 import { PlayerDashboard as PlayerDashboardData } from '../../core/models/dashboard';
-import { PlayerDashboardService } from '../../core/services/player-dashboard.service';
+import { DashboardError, PlayerDashboardService } from '../../core/services/player-dashboard.service';
 import { ChampionPerformance } from './champion-performance';
 import { InsightsSummary } from './insights-summary';
 import { PerformanceSummary } from './performance-summary';
@@ -57,7 +57,7 @@ export class PlayerDashboard implements OnInit {
         error: (err: unknown) => {
           const status = (err as { status?: number })?.status;
           this.status.set(status === 404 ? 'not-found' : 'error');
-          if (err instanceof Error && err.message) this.errorMessage.set(err.message);
+          if (err instanceof DashboardError) this.errorMessage.set(err.message);
         },
       });
   }

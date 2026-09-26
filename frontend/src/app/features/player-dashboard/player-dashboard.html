@@ -30,7 +30,7 @@
     <div class="flex max-w-2xl flex-col items-start gap-3 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm dark:border-stone-800 dark:bg-stone-900">
       <span class="font-mono text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">Erro</span>
       <h1 class="text-2xl leading-snug">Falha ao carregar a análise.</h1>
-      <p class="text-stone-600 dark:text-stone-400">{{ errorMessage() }}</p>
+      <p class="text-stone-600 dark:text-stone-400" aria-live="polite">{{ errorMessage() }}</p>
       <a class="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-5 py-3 font-semibold text-stone-950 shadow-sm transition-colors hover:bg-amber-500" routerLink="/">Voltar à busca</a>
     </div>
   } @else {
