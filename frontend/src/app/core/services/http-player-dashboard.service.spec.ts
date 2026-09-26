@@ -103,6 +103,30 @@ describe('HttpPlayerDashboardService', () => {
     expect(err?.message).toContain('Riot');
   });
 
+  it('mapeia 401 do sync para erro acionável', () => {
+    let err: DashboardError | undefined;
+    service.syncMatches(sample.player.id).subscribe({ error: (e: DashboardError) => (err = e) });
+
+    httpMock
+      .expectOne(`http://localhost:5181/api/players/${sample.player.id}/matches/sync`)
+      .flush('unauthorized', { status: 401, statusText: 'Unauthorized' });
+
+    expect(err?.status).toBe(401);
+    expect(err?.message).toBe('Sua sessão expirou. Entre novamente para sincronizar partidas.');
+  });
+
+  it('mapeia 429 do sync para erro acionável', () => {
+    let err: DashboardError | undefined;
+    service.syncMatches(sample.player.id).subscribe({ error: (e: DashboardError) => (err = e) });
+
+    httpMock
+      .expectOne(`http://localhost:5181/api/players/${sample.player.id}/matches/sync`)
+      .flush('rate limited', { status: 429, statusText: 'Too Many Requests' });
+
+    expect(err?.status).toBe(429);
+    expect(err?.message).toBe('A Riot limitou as consultas. Tente novamente em alguns instantes.');
+  });
+
   it('mapeia 500 para DashboardError', () => {
     let err: DashboardError | undefined;
     service.getDashboard(sample.player.id).subscribe({
