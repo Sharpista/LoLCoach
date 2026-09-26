@@ -9,13 +9,15 @@ linear_issues:
   - LOL-57
   - LOL-58
   - LOL-59
+  - LOL-62
+  - LOL-63
 ---
 
 # Spec 009 - Runtime Hermes Linear/Supabase/GitHub/Railway
 
 ## Objetivo
 
-Definir o contrato implementável para integrar o orquestrador Hermes às issues Linear do LoLSaas usando o pacote `hermes-agent-runtime`, Supabase como estado transacional de execução, GitHub como fonte de código/review/CI e Railway como alvo de deploy autorizado. A integração deve impedir execução concorrente da mesma issue, registrar ciclo de vida e eventos auditáveis, exigir gates de qualidade/review antes de mover trabalho, recuperar locks expirados com segurança e nunca aplicar migrações ou deploys sem autorização explícita.
+Definir o contrato implementável para integrar o pipeline oficial `Linear -> Orchestrator Hermes -> contexto/memória -> Supabase -> seleção de especialista -> dev-backend/dev-frontend/devops -> qualidade -> code-reviewer -> GitHub -> Railway` usando o pacote `hermes-agent-runtime` como boundary transacional. A integração deve impedir execução concorrente da mesma issue, registrar ciclo de vida e eventos auditáveis, exigir gates de qualidade/review antes de mover trabalho, recuperar locks expirados com segurança e nunca aplicar migrações ou deploys sem autorização explícita.
 
 ## Base verificada
 
@@ -29,6 +31,7 @@ Definir o contrato implementável para integrar o orquestrador Hermes às issues
 | Banco Supabase | Tabelas `agent_runs`, `agent_execution_locks` e `agent_events` existem e constraints batem com o runtime; funções `public.hermes_*` ainda não existem |
 | Issues Linear | LOL-56, LOL-57 e LOL-58 em `Todo`; LOL-59 em `Done` |
 | Regras de projeto | `AGENTS.md`, `specs/README.md` e `orchestrator/ORCHESTRATOR.md` exigem spec/design/tasks sem Open Questions bloqueantes antes de implementar |
+| Reconciliação LOL-63 | Esta atualização amplia a boundary runtime para o pipeline oficial completo, sem implementar código, migration, deploy, push ou PR |
 
 ## Escopo
 
@@ -37,6 +40,7 @@ Definir o contrato implementável para integrar o orquestrador Hermes às issues
 - Aplicar a migração SQL do runtime em Supabase por owner único e com revisão, antes de ativar a integração.
 - Registrar runs, locks, heartbeats, eventos, resultado de testes/review, commit/PR/deployment quando existirem.
 - Roteamento determinístico de labels Linear para perfis Hermes.
+- Carregar contexto e memória de projeto antes de selecionar e acionar especialista, sem persistir segredos ou payload bruto de issue.
 - Recovery seguro de locks expirados antes de nova tentativa de claim.
 - Gates de QA/review e limites claros para deploy Railway.
 - Observabilidade operacional suficiente para auditar uma execução por `run_id`.
@@ -50,6 +54,50 @@ Definir o contrato implementável para integrar o orquestrador Hermes às issues
 - Criar secrets, tokens ou variáveis reais em Linear, Supabase, GitHub ou Railway.
 - Automatizar issues de `env:production`, `execution:human`, `execution:blocked` ou `risk:critical`.
 - Marcar issues Linear como `Done` automaticamente; o runtime move no máximo até revisão/estado final de orquestração definido no design.
+
+## Pipeline oficial reconciliado
+
+```text
+Linear issue elegível
+  -> Orchestrator Hermes lê spec/design/tasks, labels e dependências
+  -> Orchestrator carrega contexto/memória permitidos (AGENTS, specs, OpenViking/runbooks, histórico Kanban)
+  -> Orchestrator executa recovery e claim transacional no Supabase via hermes-agent-runtime
+  -> Orchestrator seleciona especialista Hermes por label/escopo validado
+  -> dev-backend/dev-frontend/devops executa task em workspace/branch isolado
+  -> qualidade valida critérios de aceite e evidências aplicáveis
+  -> code-reviewer revisa diff/contrato/segurança antes de aprovação
+  -> GitHub recebe branch/PR/CI apenas quando autorizado pela task
+  -> Railway recebe deploy apenas por task devops/github-profile autorizada e gate de ambiente
+```
+
+### Entradas, saídas e ownership por etapa
+
+| Etapa | Entrada mínima | Saída verificável | Owner |
+|---|---|---|---|
+| Linear | Issue `Todo`, labels operacionais, vínculo da spec, aceite | Issue elegível, bloqueada ou ignorada com motivo | `orchestrator` |
+| Orchestrator Hermes | Issue elegível, spec/design/tasks, dependências | `run_id`, policy decision, task Kanban ou bloqueio | `orchestrator` |
+| Contexto/memória | AGENTS/README/spec/design/tasks, memórias OpenViking pertinentes, histórico de runs | Context bundle redigido, sem secrets, anexado ao handoff/log estruturado | `orchestrator` |
+| Supabase runtime | `linear_issue_id`, `run_id`, `agent`, TTL, payloads permitidos | `agent_runs`, `agent_execution_locks`, `agent_events` consistentes | `devops` para SQL; `orchestrator` para uso |
+| Seleção de especialista | Label `agent:*`, risco, ambiente, tipo de mudança | Perfil Hermes canônico ou bloqueio por política | `orchestrator` |
+| Implementação | Task Kanban, workspace, contrato de spec | Alteração versionável, comandos executados, evidência | `dev-backend`/`dev-frontend`/`devops` |
+| Qualidade | SHA/diff candidato, critérios de aceite, evidências do implementador | Relatório QA aprovado/reprovado/bloqueado | `qualidade` |
+| Code review | Diff, relatório QA, spec/design/tasks | Parecer aprovado/rework/bloqueado | `code-reviewer` |
+| GitHub | Branch/commit autorizado, PR policy, CI | SHA/PR/checks registrados ou bloqueio | `github-profile`/`code-reviewer` |
+| Railway | Task de deploy autorizada, ambiente permitido, rollback/runbook | Deployment id/status ou bloqueio seguro | `devops`/`github-profile` |
+
+### Gaps entre boundary runtime atual e pipeline completo
+
+| Gap | Classificação | Impacto | Tratamento nesta spec |
+|---|---|---|---|
+| Runtime cobre claim/heartbeat/finish/recovery, mas não decide labels Linear | Implementação orquestrador | Sem policy, uma issue inválida poderia tentar executar | T-ORCH-2 e testes T-QA-1 |
+| Contexto/memória ainda não tem contrato de bundle redigido | Contrato de integração | Risco de handoff incompleto ou de vazar texto bruto/secrets | R11 e T-ORCH-10 |
+| Funções `public.hermes_*` ausentes no Supabase observado | Dependência operacional | `SupabaseStore.claim()` falha até migration autorizada | T-DB-1..T-DB-5, owner `devops` |
+| Seleção de especialista depende do mapeamento Linear -> perfil Hermes | Roteamento | Perfil incorreto gera card parado ou trabalho fora de escopo | R1, R11, T-ORCH-2 |
+| Gates qualidade/code-reviewer não são garantidos pelo runtime sozinho | Gate de processo | Implementação poderia parecer `completed` antes de QA/review | R7, T-BE-3, T-QA-4 |
+| GitHub/CI/PR dependem de autorização e publicação real | Integração externa | SHA/PR inventado compromete auditoria | T-GH-1..T-GH-3 |
+| Railway deploy é fora do caminho padrão automático | Segurança/ops | Deploy acidental ou production sem humano | R8, T-OPS-1..T-OPS-3 |
+
+Os gaps acima não bloqueiam a spec porque cada um tem owner, task e gate seguros antes da automação contínua.
 
 ## Requisitos
 
@@ -180,6 +228,13 @@ Definir o contrato implementável para integrar o orquestrador Hermes às issues
 6.7 Compatibilidade RPC/migration: `hermes_claim_run`, `hermes_finish_run` e `hermes_recover_expired_lock` devem gravar payloads conforme este contrato. Migrações existentes que já criam eventos sem payload devem ser ajustadas de forma reaplicável para usar `{}` e não podem quebrar readers que ainda leem payload nulo; readers devem tratar `null` legado como `{}` durante a transição.
 6.8 Status finais aceitos no runtime: `completed`, `failed`, `blocked`, `canceled`.
 6.9 Para workers `dev-backend`, `dev-frontend` e `devops`, `ExecutionResult` precisa ter `tests_status = passed` e `review_status = approved` antes de `completed`.
+6.10 Eventos emitidos pelo adapter durante dispatch são acumulados no runtime antes da finalização e devem ser persistidos em todos os desfechos: sucesso, bloqueio por gate/política, falha técnica e timeout. Um desfecho que não seja sucesso não pode perder eventos já observados como `kanban.dispatched`, `kanban.status_changed`, `kanban.blocked`, `kanban.failed` ou `kanban.timeout`.
+6.11 A ordem obrigatória de persistência é: eventos de claim/lock, `agent.dispatched`, eventos acumulados do adapter, evento final `run.completed`/`run.blocked`/`run.failed`/`run.canceled`, `lock.released` quando houver ownership. `hermes_finish_run` só pode ser chamado depois de persistir os eventos acumulados; se um evento acumulado falhar validação, o run deve finalizar como `failed` ou `blocked` com erro sanitizado, não como `completed`.
+6.12 Timeout do `KanbanDispatcherAdapter` deve gerar evento `kanban.timeout` com payload permitido antes do `run.failed` final com `error = "TimeoutError"` ou `error_code = "TimeoutError"`. Timeout não é `blocked`, porque representa falha técnica/temporal do adapter.
+6.13 Falha ou bloqueio eventful devem carregar eventos já acumulados por uma estrutura explícita de erro/envelope, por exemplo `ExecutionEventError(events, error_type)` ou resultado equivalente. O runtime só persiste `type(exc).__name__`, `error_code` ou código curto permitido; mensagem crua de exceção, stdout/stderr, stack trace, corpo de resposta externa e dados de issue continuam proibidos.
+6.14 Deduplicação de eventos acumulados deve ser determinística por run antes da persistência. A chave mínima é `(event_type, kanban_task_id, status, kanban_outcome)` quando `kanban_task_id` existir; para eventos sem task, usar `(event_type, payload normalizado canônico)`. Em caso de duplicata, preservar a primeira ocorrência observada e descartar repetições idênticas para evitar timelines infladas por polling/retry.
+6.15 O contrato de `ExecutionResult.events` permanece append-only e ordenado; a deduplicação não pode reordenar eventos distintos. Eventos desconhecidos ou payload com campos fora da allowlist devem falhar teste de contrato e impedir persistência como sucesso.
+6.16 Testes obrigatórios da implementação devem cobrir: sucesso com eventos acumulados antes de `finish`; bloqueio por gate ausente preservando `kanban.completed`/`kanban.blocked`; falha de worker preservando `kanban.failed`; timeout preservando `kanban.timeout`; erro eventful sanitizado; deduplicação mantendo a primeira ocorrência; e validação de que `finish` ocorre depois dos eventos acumulados.
 
 ### R7 - GitHub, QA e review gates
 
@@ -220,12 +275,20 @@ Definir o contrato implementável para integrar o orquestrador Hermes às issues
 10.3 O recovery loop deve ter intervalo configurável e métrica/contagem de locks recuperados.
 10.4 Toda execução bloqueada por política deve registrar motivo acionável para o orquestrador.
 
+### R11 - Contexto, memória e handoff oficial
+
+11.1 Antes de criar ou despachar uma task de especialista, o orquestrador deve montar um bundle mínimo de contexto com: issue Linear e labels redigidos, `spec.md`, `design.md`, `tasks.md`, dependências, regras de `AGENTS.md`/`ORCHESTRATOR.md`, memórias OpenViking pertinentes, status Kanban e workspace/branch quando existir.
+11.2 O bundle de contexto deve excluir tokens, headers, cookies, connection strings, service role key, `.env`, stdout/stderr bruto, descrição/comentários completos da issue quando não necessários, PII e payloads externos não redigidos.
+11.3 Seleção de especialista só pode ocorrer depois de validar labels, risco, ambiente, dependências e ausência de Open Questions bloqueantes; qualquer ambiguidade que altere regra de negócio, arquitetura, segurança, GitHub ou Railway deve bloquear para `orchestrator`.
+11.4 Cada handoff entre `orchestrator`, especialista, `qualidade`, `code-reviewer`, `github-profile` e `devops` deve registrar entrada consumida, saída esperada, SHA/diff quando aplicável, comandos executados/não executados e decisão de gate.
+11.5 O runtime persiste apenas identificadores e payloads permitidos; o contexto rico fica no Kanban/evidence em forma redigida, não em `agent_events.payload`.
+
 ## Critérios de aceitação
 
 - AC1 `spec.md`, `design.md` e `tasks.md` existem em `specs/009-hermes-runtime/`, com `status: READY` e `Open Questions` sem pendência bloqueante.
 - AC2 A documentação declara arquitetura, boundaries e responsabilidades entre Linear, orquestrador Hermes, pacote runtime, Supabase, GitHub e Railway.
 - AC3 A documentação inclui o contrato de labels e roteamento para perfis Hermes.
-- AC4 O contrato de run lifecycle cobre claim, lock, heartbeat, finish, recovery, status finais, eventos mínimos e payload JSON permitido por evento.
+- AC4 O contrato de run lifecycle cobre claim, lock, heartbeat, finish, recovery, status finais, eventos mínimos, payload JSON permitido por evento, eventos acumulados em sucesso/blocked/failed/timeout, ordem de persistência antes do finish e deduplicação.
 - AC5 A spec declara que a migração `sql/001_runtime_functions.sql` pertence a `devops` nesta entrega, requer autorização e não é aplicada nesta task.
 - AC6 A spec declara gates de QA/review antes de concluir código e limita deploy Railway a ação autorizada.
 - AC7 A spec explicita tratamento de segurança para service role key, tokens, logs, payloads, PII e dados proibidos.
@@ -233,6 +296,7 @@ Definir o contrato implementável para integrar o orquestrador Hermes às issues
 - AC8 `tasks.md` decompõe a implementação em tarefas por perfil com dependências e evidências esperadas.
 - AC9 Não há alteração de código runtime, migrations antigas, banco, secrets, deploy, push ou PR nesta task.
 - AC10 Evidência local registra inspeção de AGENTS/ORCHESTRATOR/specs, runtime package e estado git.
+- AC11 A documentação inclui o diagrama textual do pipeline oficial, entradas/saídas/ownership por etapa, gaps entre boundary runtime e pipeline completo, e plano de implementação/QA derivado sem Open Questions bloqueantes.
 
 ## Dependências
 

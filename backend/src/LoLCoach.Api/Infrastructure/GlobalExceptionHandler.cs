@@ -1,6 +1,8 @@
 using LoLCoach.Api.Application;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace LoLCoach.Api.Infrastructure;
 
@@ -33,6 +35,13 @@ public sealed class GlobalExceptionHandler(IProblemDetailsService problemDetails
                 Title = "Riot service unavailable",
                 Type = "https://tools.ietf.org/html/rfc9110#section-15.6.4",
                 Detail = "The Riot API is temporarily unavailable. Please retry later.",
+            },
+            _ when IsDatabaseException(exception) => new ProblemDetails
+            {
+                Status = StatusCodes.Status503ServiceUnavailable,
+                Title = "Database unavailable",
+                Type = "https://tools.ietf.org/html/rfc9110#section-15.6.4",
+                Detail = "The database is temporarily unavailable. Please retry later.",
             },
             _ => null,
         };
@@ -78,5 +87,12 @@ public sealed class GlobalExceptionHandler(IProblemDetailsService problemDetails
         Detail = retryAfter is { } seconds
             ? $"The Riot API rate limit was reached. Retry after {seconds} seconds."
             : "The Riot API rate limit was reached. Please retry later.",
+    };
+
+    private static bool IsDatabaseException(Exception exception) => exception switch
+    {
+        DbUpdateException or NpgsqlException or TimeoutException or System.Net.Sockets.SocketException => true,
+        _ when exception.InnerException is not null => IsDatabaseException(exception.InnerException),
+        _ => false,
     };
 }

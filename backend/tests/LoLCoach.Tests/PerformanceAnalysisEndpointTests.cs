@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Npgsql;
 
 namespace LoLCoach.Tests;
 
@@ -47,13 +48,13 @@ public sealed class PerformanceAnalysisEndpointTests(PostgresFixture postgres) :
                 true));
     }
 
-    private WebApplicationFactory<Program> CreateFactory(IAiCoach? aiCoach = null)
+    private WebApplicationFactory<Program> CreateFactory(IAiCoach? aiCoach = null, string? connectionString = null)
     {
-        var connectionString = postgres.ConnectionString;
+        var effectiveConnectionString = connectionString ?? postgres.ConnectionString;
         return new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
-                new Dictionary<string, string?> { ["ConnectionStrings:LoLCoach"] = connectionString }));
+                new Dictionary<string, string?> { ["ConnectionStrings:LoLCoach"] = effectiveConnectionString }));
             builder.ConfigureServices(services =>
             {
                 services.RemoveAll<IRiotMatchClient>();
@@ -146,6 +147,36 @@ public sealed class PerformanceAnalysisEndpointTests(PostgresFixture postgres) :
         Assert.Equal("Player not found", json.RootElement.GetProperty("title").GetString());
     }
 
+    [Fact]
+    public async Task Analysis_accepts_postgres_uri_connection_string()
+    {
+        var player = await SavePlayerWithMatchesAsync();
+        await using var factory = CreateFactory(connectionString: ToPostgresUri(postgres.ConnectionString));
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync($"/api/players/{player.Id}/analysis");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(player.Id, json.RootElement.GetProperty("player").GetProperty("id").GetGuid());
+    }
+
+    [Fact]
+    public async Task Analysis_database_unavailable_returns_503_problem_details_without_secret()
+    {
+        await using var factory = CreateFactory(connectionString:
+            "Host=127.0.0.1;Port=1;Database=lolcoach_no_connection;Username=test;Password=secret-do-not-log");
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync($"/api/players/{Guid.NewGuid()}/analysis");
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.DoesNotContain("secret-do-not-log", body, StringComparison.OrdinalIgnoreCase);
+        using var json = JsonDocument.Parse(body);
+        Assert.Equal("Database unavailable", json.RootElement.GetProperty("title").GetString());
+    }
+
     private async Task<Player> SavePlayerWithMatchesAsync()
     {
         var suffix = Guid.NewGuid().ToString("N");
@@ -176,5 +207,14 @@ public sealed class PerformanceAnalysisEndpointTests(PostgresFixture postgres) :
         match.AddPlayerMatch(new PlayerMatch(Guid.NewGuid(), playerId, 1, champion, "MID", win, kills, deaths,
             assists, cs, 10_000, damage, 15_000, vision, 10, 3));
         return match;
+    }
+
+    private static string ToPostgresUri(string connectionString)
+    {
+        var builder = new NpgsqlConnectionStringBuilder(connectionString);
+        var username = Uri.EscapeDataString(builder.Username ?? string.Empty);
+        var password = Uri.EscapeDataString(builder.Password ?? string.Empty);
+        var database = Uri.EscapeDataString(builder.Database ?? string.Empty);
+        return $"postgresql://{username}:{password}@{builder.Host}:{builder.Port}/{database}";
     }
 }

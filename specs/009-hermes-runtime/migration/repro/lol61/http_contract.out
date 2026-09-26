@@ -1,0 +1,9 @@
+PASS service_role claim -> 200 true (http 200 true)
+PASS anon sem token -> 401 42501 (http 401 {"code":"42501","details":null,"hint":null,"message":"permis)
+PASS authenticated com JWT -> 403 42501 (http 403 {"code":"42501","details":null,"hint":null,"message":"permis)
+PASS service_role insert evento -> 201 (http 201 )
+PASS conflito de lock -> 200 false (http 200 false)
+PASS service_role finish -> 200 true (http 200 true)
+PASS GET eventos do run -> ciclo completo (http 200 rows=7 ['lock.acquired', 'lock.rejected', 'lock.released', 'run.completed', 'run.created', 'run.started', 'tests.completed'])
+PASS payloads preenchidos via REST [{"event_type": "run.created", "payload": {}}, {"event_type": "lock.acquired", "payload": {"expires_at": "2026-09-25T20:15:27.612925+00:00", "ttl_seconds": 60}}
+== http contract: 8/8 PASS ==
