@@ -1,0 +1,12 @@
+artefato: /tmp/lol61/published.sql sha256=bf752895693990812933e026a260fde78db3f56d956b0d1777162087ab365537 bytes=10283
+APPLY http=201 em 0.82s body=[]
+== pos-apply inventory ==
+{"acl": "postgres:EXECUTE,service_role:EXECUTE", "def_len": 2939, "def_md5": "5d2f35c61fde84c8f187abc638e5e8c6", "name": "hermes_claim_run", "proconfig": "{\"search_path=\\\"\\\"\"}", "result": "boolean", "secdef": false}
+{"acl": "postgres:EXECUTE,service_role:EXECUTE", "def_len": 3203, "def_md5": "4ee870a853fd5d78983ef9184f2a2445", "name": "hermes_finish_run", "proconfig": "{\"search_path=\\\"\\\"\"}", "result": "boolean", "secdef": false}
+{"acl": "postgres:EXECUTE,service_role:EXECUTE", "def_len": 815, "def_md5": "791a4fe3cf48dc442448bd8b627ec255", "name": "hermes_heartbeat_run", "proconfig": "{\"search_path=\\\"\\\"\"}", "result": "boolean", "secdef": false}
+{"acl": "postgres:EXECUTE,service_role:EXECUTE", "def_len": 1286, "def_md5": "ee93efe00f0fb23da165b7697dd2ac15", "name": "hermes_recover_expired_lock", "proconfig": "{\"search_path=\\\"\\\"\"}", "result": "boolean", "secdef": false}
+== marcadores de payload ==
+{"has_finished_status": false, "has_previous_run_id": false, "has_strip_nulls": false, "proname": "hermes_claim_run"}
+{"has_finished_status": true, "has_previous_run_id": false, "has_strip_nulls": true, "proname": "hermes_finish_run"}
+{"has_finished_status": false, "has_previous_run_id": false, "has_strip_nulls": false, "proname": "hermes_heartbeat_run"}
+{"has_finished_status": false, "has_previous_run_id": true, "has_strip_nulls": true, "proname": "hermes_recover_expired_lock"}

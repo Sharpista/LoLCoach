@@ -1,0 +1,14 @@
+PASS cliente claim via proxy HTTPS run_01M3D3B3ZYHB9X3QZ7MTHC4PYE
+PASS cliente heartbeat
+PASS conflito (claim concorrente) -> RunConflict run_01M3D3B4KJEB5R27VE1QNKTW8F
+PASS run rejeitado nao persistido []
+PASS lock permanece com o detentor [{"run_id": "run_01M3D3B3ZYHB9X3QZ7MTHC4PYE"}]
+PASS lock.rejected auditado no detentor [{"payload": {"reason": "RunConflict", "attempted_run_id": "run_01M3D3B4KJEB5R27VE1QNKTW8F"}}]
+PASS cliente finish completed
+PASS finish tardio recusado
+PASS lock liberado no finish
+PASS ciclo de eventos persistido ["run.created", "lock.acquired", "run.started", "lock.rejected", "tests.completed", "review.completed", "run.completed", "lock.released"]
+PASS payloads nao nulos
+PASS payloads do SQL aceitos pelo contrato Python []
+PASS run.completed persistido [{"status": "completed", "tests_status": "passed", "review_status": "approved", "commit_sha": "cccccccccccccccccccccccccccccccccccccccc"}]
+== client compat: 13/13 PASS ==

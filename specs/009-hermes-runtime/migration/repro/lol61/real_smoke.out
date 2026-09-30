@@ -1,0 +1,56 @@
+projeto: https://tsfdsjmostggtxckmirr.supabase.co prefixo de fixture: LOL61-APPLY-1790367457
+anon key disponivel=True fingerprint=7650ca244458fb96
+PASS A claim service_role -> 200 true http=200 true
+PASS A run.created payload {} {}
+PASS A lock.acquired ttl/expires_at {"expires_at": "2026-09-25T20:19:09.339488+00:00", "ttl_seconds": 90}
+PASS A run.started risk/mode/env {"risk": "medium", "environment": "staging", "execution_mode": "auto"}
+PASS B claim concorrente -> 200 false http=200 false
+PASS B run rejeitado nao persistido []
+PASS B lock.rejected no detentor com attempted_run_id [{"run_id": "run_01M3D3ESKD0FDNNKN91EHKZZ7Y", "payload": {"reason": "RunConflict", "attempted_run_id": "run_01M3D3ETF9036VV18SVNDG485G"}}]
+PASS C heartbeat detentor -> 200 true http=200 true
+PASS C finish completed -> 200 true http=200 true
+PASS C run.completed payload allowlist {"commit_sha": "dddddddddddddddddddddddddddddddddddddddd", "tests_status": "passed", "review_status": "approved", "pull_request_url": "https://github.com/Sharpista/LoLCoach/pull/31", "railway_deployment_id": "smoke-lol61"}
+PASS C lock.released finished_status {"finished_status": "completed"}
+PASS C finish tardio -> 200 false http=200 false
+PASS C lock liberado
+PASS D claim -> true true
+PASS D finish failed -> true true
+PASS D run.failed payload {"error": "RuntimeError", "error_code": "TimeoutError", "kanban_outcome": "blocked", "kanban_task_id": "t_smoke1"}
+PASS E claim -> true true
+PASS E finish blocked -> true true
+PASS E run.blocked payload {"error": "ExecutionBlocked", "tests_status": "passed", "blocked_reason": "needs_input", "kanban_task_id": "t_smoke2"}
+PASS F claim -> true true
+PASS F finish canceled -> true true
+PASS F run.canceled payload {"reason": "smoke", "canceled_by": "operator"}
+PASS G claim -> true true
+PASS G lock forcado ao vencimento http=200 [{"linear_issue_id":"LOL61-APPLY-1790367457-G","run_id":"run_01M3D3F2NEWNKWW5601
+PASS G recover -> 200 true http=200 true
+PASS G lock.expired expired_at/last_heartbeat_at {"expired_at": "2020-01-01T00:00:00+00:00", "last_heartbeat_at": "2026-09-25T20:17:48.957216+00:00"}
+PASS G lock.recovered previous_run_id {"previous_run_id": "run_01M3D3F2NEWNKWW5601GK9YR88"}
+PASS G run marcado failed/LockExpired [{"status": "failed", "error": "LockExpired"}]
+PASS G finish tardio -> false false
+PASS H claim -> true true
+PASS H p_fields nao-objeto rejeitado (4xx) http=400 {"code":"P0001","details":null,"hint":null,"message":"p_fields must be a JSON object"}
+PASS H run permanece running [{"status": "running"}]
+PASS H sem evento de status final ["lock.acquired", "run.created", "run.started"]
+PASS I anon sem Authorization -> 401 42501 http=401 {"code":"42501","details":null,"hint":null,"message":"permission denied for func
+PASS J todos os payloads aceitos pelo contrato Python []
+PASS J nenhum payload nulo eventos de fixture=29
+== payloads gravados (fixture) ==
+   lock.acquired: {"expires_at": "2026-09-25T20:19:09.339488+00:00", "ttl_seconds": 90}
+   lock.expired: {"expired_at": "2020-01-01T00:00:00+00:00", "last_heartbeat_at": "2026-09-25T20:17:48.957216+00:00"}
+   lock.recovered: {"previous_run_id": "run_01M3D3F2NEWNKWW5601GK9YR88"}
+   lock.rejected: {"reason": "RunConflict", "attempted_run_id": "run_01M3D3ETF9036VV18SVNDG485G"}
+   lock.released: {"finished_status": "completed"}
+   run.blocked: {"error": "ExecutionBlocked", "tests_status": "passed", "blocked_reason": "needs_input", "kanban_task_id": "t_smoke2"}
+   run.canceled: {"reason": "smoke", "canceled_by": "operator"}
+   run.completed: {"commit_sha": "dddddddddddddddddddddddddddddddddddddddd", "tests_status": "passed", "review_status": "approved", "pull_request_url": "https://github.com/Sharpista/LoLCoach/pull/31", "railway_deployment_id": "smoke-lol61"}
+   run.created: {}
+   run.failed: {"error": "RuntimeError", "error_code": "TimeoutError", "kanban_outcome": "blocked", "kanban_task_id": "t_smoke1"}
+   run.started: {"risk": "medium", "environment": "staging", "execution_mode": "auto"}
+== runs de fixture: 7 ==
+cleanup agent_runs http=200 removidos=6
+PASS K limpeza sem residuo (events/locks/runs) {"events": 0, "locks": 0, "runs": 0}
+PASS L contagens globais iguais ao pre-apply {"events_total": 12, "payload_nulls": 0, "runs_total": 2, "locks_total": 0}
+PASS L nenhum payload nulo no projeto {"events_total": 12, "payload_nulls": 0, "runs_total": 2, "locks_total": 0}
+== real smoke: 39/39 PASS ==

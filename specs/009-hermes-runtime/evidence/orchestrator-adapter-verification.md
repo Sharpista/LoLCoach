@@ -59,3 +59,24 @@
 - A RPC `public.hermes_claim_run` passa a retornar `boolean`; a aplicação da migration precisa validar compatibilidade no banco compartilhado antes de uso real.
 - `KanbanDispatcherAdapter` é uma boundary injetável: a integração concreta com leitura do board real deve fornecer callbacks que convertam o estado Kanban para `KanbanTaskSnapshot`.
 - Ativação real com `SupabaseStore.claim()` continua bloqueada até as funções `public.hermes_*` existirem no Supabase.
+
+## Atualização LOL-62 - eventos acumulados em falhas
+
+Card: `t_115ccc79` / LOL-62.
+
+Alterações no pacote `/home/alexandre/hermes-agent-runtime`:
+
+- `src/hermes_agent_runtime/kanban.py`: falha técnica do worker e timeout agora lançam `ExecutionEventError` com os eventos `kanban.dispatched` + `kanban.failed`/`kanban.timeout` acumulados, em vez de perder a trilha ao lançar `RuntimeError`/`TimeoutError` direto.
+- `src/hermes_agent_runtime/runtime.py`: eventos de `ExecutionResult` são persistidos antes de avaliar falha de heartbeat e antes de `finish`; erros eventful persistem eventos acumulados antes de finalizar `failed`; payload inválido em evento acumulado finaliza com erro sanitizado (`PayloadValidationError`) sem persistir o payload inválido; deduplicação valida/normaliza toda a fila antes de gravar e preserva a primeira ocorrência em ordem.
+- `tests/test_runtime.py`: adicionados testes para timeout/falha eventful, evento `kanban.completed` sobrevivendo a bloqueio por gate, deduplicação antes de `finish`, erro sanitizado de validação de payload e ordem evento-antes-finish.
+
+Verificações executadas:
+
+| Comando | Diretório | Resultado |
+|---|---|---|
+| `PYTHONPATH=src python -m unittest discover -s tests -v && PYTHONPATH=src python -m compileall -q src tests` | `/home/alexandre/hermes-agent-runtime` | passou; 22 testes executados, 22 OK, compileall sem erros |
+
+Não executado nesta atualização:
+
+- `dotnet build` / `dotnet test`: não aplicável; a alteração é no pacote Python `hermes-agent-runtime`, sem código .NET do produto LoLCoach.
+- Supabase real / migration / dispatcher real: fora do escopo do card LOL-62; nenhum secret, banco compartilhado ou worker real foi acionado.

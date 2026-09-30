@@ -1,0 +1,18 @@
+BEGIN
+psql:smoke_local.sql:35: NOTICE:  PASS cenario 1 claim + payloads run.created/lock.acquired/run.started
+DO
+psql:smoke_local.sql:57: NOTICE:  PASS cenario 2 conflito + lock.rejected no detentor + sem run rejeitado
+DO
+psql:smoke_local.sql:73: NOTICE:  PASS cenario 3 heartbeat (detentor/estranho/vencido)
+DO
+psql:smoke_local.sql:105: NOTICE:  PASS cenario 4 recovery + lock.expired/lock.recovered + finish tardio + re-claim
+DO
+psql:smoke_local.sql:170: NOTICE:  PASS cenario 5 payload por status final (completed/failed/blocked/canceled)
+DO
+psql:smoke_local.sql:217: NOTICE:  PASS cenario 6 p_fields nao-objeto / status invalido / TTL < 10 rejeitados sem write (eventos 26 -> 29)
+DO
+psql:smoke_local.sql:239: NOTICE:  PASS cenario 7 payload nao nulo/objeto jsonb + default {} legado (total 29)
+DO
+psql:smoke_local.sql:265: NOTICE:  PASS cenario 8 grants (RPC e sequence)
+DO
+ROLLBACK
