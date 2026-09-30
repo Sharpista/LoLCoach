@@ -1,3 +1,4 @@
+using System.Net;
 using Npgsql;
 
 namespace LoLCoach.Api.Infrastructure;
@@ -18,6 +19,7 @@ public static class PostgresConnectionString
             Host = uri.Host,
             Port = uri.IsDefaultPort ? 5432 : uri.Port,
             Database = Uri.UnescapeDataString(uri.AbsolutePath.TrimStart('/')),
+            SslMode = RequiresTls(uri.Host) ? SslMode.Require : SslMode.Prefer,
         };
 
         if (userInfo.Length > 0 && userInfo[0].Length > 0)
@@ -40,5 +42,21 @@ public static class PostgresConnectionString
         }
 
         return builder.ConnectionString;
+    }
+
+    /// <summary>
+    /// URIs remotas (Supabase, pooler) exigem TLS por padrao. Hosts de loopback
+    /// (desenvolvimento local e Testcontainers) permanecem em Prefer para nao
+    /// exigir TLS de um PostgreSQL sem certificado, e um parametro de query
+    /// explicito (por exemplo <c>?sslmode=require</c>) prevalece sobre o padrao.
+    /// </summary>
+    private static bool RequiresTls(string host)
+    {
+        if (host is "localhost" or "127.0.0.1" or "::1" or "[::1]")
+        {
+            return false;
+        }
+
+        return !(IPAddress.TryParse(host, out var address) && IPAddress.IsLoopback(address));
     }
 }
