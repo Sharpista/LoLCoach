@@ -1,7 +1,7 @@
 ---
 id: 008
 name: railway-deploy
-status: READY
+status: DONE
 depends_on:
   - 001
   - 002
@@ -169,6 +169,34 @@ Definir o contrato verificável de empacotamento e publicação do MVP LoLCoach 
 | Configuração da plataforma | IaC em `.railway/railway.ts` (beta do DSL) | painel + registro no runbook, se o DSL não expressar o campo |
 | Plano/cobrança da Railway | Fora do escopo | decisão do usuário |
 | Autenticação na API | Fora do escopo (MVP) | nova spec |
+
+## Registro de conclusão
+
+Promoção documental de `READY` para `DONE` (card `t_bfade010`, 2026-10-01) após QA e code review aprovados. A implementação da spec já está integrada em `develop` (branch `integration/008-spec-deploy`, PRs #24 e #25). Esta etapa é apenas documental: nada foi publicado, mergeado, tagueado, liberado ou implantado.
+
+| Campo | Valor |
+|---|---|
+| SHA candidato (código integrado) | `61b49ab72b71aa9075a00be1bb385aee8f5b169f`, idêntico a `origin/develop` no momento da promoção — é o SHA do **código** avaliado por QA e code review, **não** o SHA do commit documental desta promoção |
+| SHA da promoção documental | `e1227a8ef61408676808011ea414a2b9fa36db49` (card `t_bfade010`, 2026-10-01), filho direto de `61b49ab`: commit que levou a spec de `READY` para `DONE`. As três ressalvas do code review final (`t_077ee7fa`) foram tratadas no commit documental seguinte, do card `t_0454cfda` |
+| Parecer QA | `evidence/qa-validation-report.md` — **APROVADO** na revalidação de `227099e`; a primeira passada (`05159e6`) registrou 1 bug Médio em AC4 (`/health/ready` devolvia 500 em vez de 503), corrigido em `6047dc7` |
+| Parecer de code review | `evidence/code-review-report.md` — **APROVADO** em `f2f9c19`, 0 achados bloqueantes e 3 melhorias recomendadas (MR-1, MR-2, MR-3) |
+| Evidência de empacotamento | `evidence/ops-local-verification.md` (`docker build`/`docker run` local) e `runbook.md` |
+| Artefatos de 008 no SHA candidato | `Dockerfile`, `.dockerignore`, `.railway/railway.ts`, `runbook.md`, `deploy.yml`, `migrate.yml`, `frontend-ci.yml` e os READMEs estão **byte a byte iguais** a `f2f9c19` (`git diff f2f9c19..HEAD` nesses caminhos vazio), de modo que a evidência de contêiner do parecer continua válida |
+| Verificação executada na promoção | `bash backend/scripts/verify.sh` em `61b49ab`, exit 0: build 0 warnings / 0 errors, `Failed: 0, Passed: 87, Skipped: 0`, `dotnet format --verify-no-changes` sem alterações, auditoria de pacotes sem vulnerabilidades e smoke do host OK. Frontend em `61b49ab`: `npm ci` exit 0, `ng build --configuration production` exit 0 (bundle inicial 309,96 kB / 83,82 kB de transferência), `ng test --watch=false` exit 0 (5 arquivos, 30 testes) |
+| Higiene de segredos na promoção | `git grep` para `postgres://`, `AIza…` e `GEMINI_API_KEY=` sem resultados; único `.env` rastreado é `frontend/.env.example`; `grep` no bundle publicado sem ocorrências |
+
+### Limitações registradas
+
+- **L1 (R7.3 — revisores obrigatórios):** o plano de GitHub em uso não oferece revisores obrigatórios em repositório privado. O gate permanece o disparo manual somado ao GitHub Environment `production`, como registrado no `runbook.md`.
+- **L2 (AC14 — `railway config plan`):** não executado por ausência de Railway CLI/token nesta estação; a conferência de AC14 foi estática sobre `.railway/railway.ts`. A primeira execução do plan é ação humana autorizada (runbook §3.1).
+- **L4 (`RAILWAY_TOKEN`):** criar o secret no Environment `production` é ação do usuário, não do agente.
+- **L5 (deriva pós-review, não bloqueante):** commits relevantes entraram em `develop` depois do SHA revisado `f2f9c19` e não estão cobertos por aquele parecer:
+  - `9e7d7b4` e `fa03619` (2026-09-25) reescreveram `DatabaseReadinessHealthCheck` para abrir a conexão (`OpenConnectionAsync`) e registrar a exceção em log. O contrato de AC4 se mantém — `Unhealthy` quando o banco é inalcançável, coberto por `Readiness_returns_503_when_database_connection_string_throws` —, mas o código atual difere do revisado.
+  - `b6b9a70` (2026-09-24) adicionou `.github/workflows/production.yml`, disparado por `push` em `main` no Environment `production` apenas para build e testes: não publica imagem, não aciona a Railway e não afeta AC9 (nenhum `push` em `develop`/`homologacao` dispara deploy). O arquivo está fora do contrato de R7 e não passou pelo `code-reviewer`.
+  - `0a001d4` (2026-09-25, `fix: aceitar URI PostgreSQL do Supabase na API`) e `3b8eef1` (2026-09-26, `ajustes`, que também versiona artefatos da Spec 009) são commits **comportamentais aditivos**: `PostgresConnectionString.Normalize` (aceita URI `postgres…://`), `PlayerDbContextFactory`, `Program.cs` e `GlobalExceptionHandler` (mapeia `DbUpdateException`/`NpgsqlException`/`TimeoutException`/`SocketException` para `503 Database unavailable`), com testes em `PostgresConnectionStringTests` e `PerformanceAnalysisEndpointTests`. Mantêm o contrato dos ACs — AC4 continua `Unhealthy` quando o banco é inalcançável e AC11 foi preservado —, mas não estavam no parecer de `f2f9c19`.
+  - Mudanças de frontend de outros escopos (dashboard/LOL-64) alteraram o app embarcado no bundle servido pela API; por isso a verificação de frontend foi reexecutada no SHA candidato em vez de reutilizar a evidência anterior.
+  - Encaminhamento recomendado: card de re-review do `code-reviewer` sobre o delta `f2f9c19..61b49ab`, fechando a rastreabilidade formal entre parecer e conteúdo integrado.
+- **Publicação pendente de autorização:** push, PR, merge, tag, release e deploy desta spec exigem autorização explícita do usuário e ocorrem fora desta etapa.
 
 ## Open Questions
 
