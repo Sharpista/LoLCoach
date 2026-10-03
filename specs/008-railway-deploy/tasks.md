@@ -1,6 +1,6 @@
 # Tasks 008 - Deploy do MVP na Railway
 
-Estado da spec: `DONE` (ver `spec.md` — verificação, pareceres e limitações estão no `Registro de conclusão` da própria spec). A implementação foi integrada em `develop` pela branch `integration/008-spec-deploy` (PRs #24 e #25) e a promoção documental para `DONE` ocorreu em 2026-10-01 no SHA `61b49ab`.
+Estado da spec: `DONE` (ver `spec.md` — verificação, pareceres e limitações estão no `Registro de conclusão` da própria spec). A implementação foi integrada em `develop` pela branch `integration/008-spec-deploy` (PRs #24 e #25) e a promoção documental para `DONE` ocorreu em 2026-10-01 no commit `e1227a8` (card `t_bfade010`), filho direto do SHA de código `61b49ab`.
 
 Responsáveis: `dev-backend` (backend), `dev-frontend` (frontend/empacotamento do bundle), `github-profile` (pipeline/DevOps, Dockerfile e documentação operacional), `qualidade` (QA), `code-reviewer` (revisão final). `devops` pode assumir qualquer item marcado com `github-profile` se o perfil estiver disponível no board.
 
@@ -15,7 +15,7 @@ Regra de conclusão herdada do `AGENTS.md`/`ORCHESTRATOR.md`: task marcada **+**
 ## 1. Backend - dev-backend
 
 - [x] **T-BE-1** `GET /health` (liveness): `AddHealthChecks()` + `MapHealthChecks("/health")` em `Program.cs`, resposta `200` com JSON `{"status":"healthy"}`, sem dependência de banco/Riot/Gemini. Sem pacote novo (API do framework compartilhado). *Aceite:* HostTest com `WebApplicationFactory` retorna 200 e o corpo esperado mesmo com `ConnectionStrings__LoLCoach` sintética inexistente. → `backend/src/LoLCoach.Api/Program.cs:24,125`; teste `Health_returns_healthy_json_without_database_connectivity` (`RuntimeHostTests.cs`), verde.
-- [x] **T-BE-2** `GET /health/ready` (readiness): verifica conectividade via `PlayerDbContext.Database.CanConnectAsync()`; `200` quando alcançável, `503` quando não; nunca logar connection string. *Aceite:* teste com banco indisponível resulta em 503 e log sem credencial. → `Program.cs:130-138` + `Infrastructure/DatabaseReadinessHealthCheck.cs`. QA APROVADO na revalidação de `227099e` (bug AC4 — 500 em vez de 503 — corrigido em `6047dc7`). **Deriva registrada (L5 da spec):** `9e7d7b4`/`fa03619` trocaram `CanConnectAsync` por `OpenConnectionAsync` e passaram a registrar a exceção em log; o contrato `503` continua coberto por `Readiness_returns_503_when_database_connection_string_throws`.
+- [x] **T-BE-2** `GET /health/ready` (readiness): verifica conectividade abrindo e fechando a conexão (`Infrastructure/DatabaseReadinessHealthCheck.cs` via `PlayerDbContext.Database.OpenConnectionAsync()`); `200` quando alcançável, `503` quando não; em falha, registra a exceção em log e devolve `Unhealthy`; nunca logar connection string. *Aceite:* teste com banco indisponível resulta em 503 e log sem credencial. → `Program.cs:130-138` + `Infrastructure/DatabaseReadinessHealthCheck.cs`. QA APROVADO na revalidação de `227099e` (bug AC4 — 500 em vez de 503 — corrigido em `6047dc7`). **Deriva registrada (L5 da spec):** `9e7d7b4`/`fa03619` trocaram `CanConnectAsync` por `OpenConnectionAsync` e passaram a registrar a exceção em log; o contrato `503` continua coberto por `Readiness_returns_503_when_database_connection_string_throws`.
 - [x] **T-BE-3** Servir o SPA: `UseStaticFiles` + fallback para `index.html` (`MapFallbackToFile`), preservando `404` JSON para `/api/**` inexistente e o comportamento dos endpoints atuais. Dica: um mapeamento explícito de `/api/{**rest}` com ProblemDetails 404 tem precedência sobre o catch-all do fallback (segmento literal `api` é mais específico) — cobrir com teste. *Aceite:* `GET /` e `GET /player/<guid>` → `index.html`; `GET /api/nao-existe` → 404 JSON; `POST /api/players/search` inalterado. → `Program.cs:122,146`; testes `Spa_fallback_serves_index_html_but_api_unknown_route_stays_problem_details` e `Search_endpoint_contract_remains_camel_case_after_spa_fallback`, verdes; smoke HTTP no contêiner em `evidence/ops-local-verification.md`.
 - [x] **T-BE-4** Proxy/host: garantir esquema/host corretos atrás do proxy (`ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`; se o smoke mostrar esquema `http`, adicionar `UseForwardedHeaders` explícito). *Aceite:* smoke com cabeçalho `X-Forwarded-Proto: https` reflete host/esquema corretos e não abre exceção. → `Program.cs:106-108`; teste `Forwarded_headers_enabled_accepts_proxy_scheme_header`, verde.
 - [x] **T-BE-5** Testes: cobrir `/health`, `/health/ready` (com e sem banco), fallback SPA, `/api` inexistente e CORS deny-by-default em ambiente não-Development. Não remover nem ignorar testes existentes. → 8 testes de host em `backend/tests/LoLCoach.Tests/RuntimeHostTests.cs`; suíte completa verde na promoção.
@@ -88,12 +88,13 @@ T-DOC-* (feito)
 
 | Item | Valor |
 |---|---|
-| SHA candidato | `61b49ab72b71aa9075a00be1bb385aee8f5b169f` (= `origin/develop`) |
+| SHA candidato (código) | `61b49ab72b71aa9075a00be1bb385aee8f5b169f` (= `origin/develop`), SHA do **código** integrado — distinto do commit documental abaixo |
+| SHA da promoção documental | `e1227a8ef61408676808011ea414a2b9fa36db49` (card `t_bfade010`, 2026-10-01), filho direto de `61b49ab`; ressalvas do code review final tratadas no card `t_0454cfda` |
 | Integração | branch `integration/008-spec-deploy`; PRs #24 (`c7a48ad`) e #25 (`7696dab`) |
 | Parecer QA | APROVADO (`227099e`), após fix `6047dc7` do bug AC4 |
 | Parecer de code review | APROVADO (`f2f9c19`), 0 bloqueantes |
 | Artefatos de 008 fora do backend | `Dockerfile`, `.dockerignore`, `.railway/railway.ts`, `runbook.md`, `deploy.yml`, `migrate.yml`, `frontend-ci.yml` e READMEs idênticos a `f2f9c19` |
-| Deriva pós-review | `9e7d7b4`/`fa03619` (`DatabaseReadinessHealthCheck.cs`), `b6b9a70` (`production.yml`) — registrada como L5 em `spec.md`; re-review do delta `f2f9c19..61b49ab` recomendado ao `code-reviewer` |
+| Deriva pós-review | `9e7d7b4`/`fa03619` (`DatabaseReadinessHealthCheck.cs`), `b6b9a70` (`production.yml`), `0a001d4`/`3b8eef1` (`PostgresConnectionString`, `PlayerDbContextFactory`, `Program.cs`, `GlobalExceptionHandler`) — registrada como L5 em `spec.md`; re-review do delta `f2f9c19..61b49ab` recomendado ao `code-reviewer` |
 | Publicação | Não executada: push, PR, merge, tag, release e deploy continuam pendentes de autorização explícita do usuário |
 
 ## Open Questions
