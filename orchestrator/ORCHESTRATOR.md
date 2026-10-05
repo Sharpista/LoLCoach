@@ -66,6 +66,8 @@ Todo card do projeto tem um issue Linear correspondente: o issue é a referênci
 
 O runtime da Spec 009 não marca Linear como `Done`: `In Review` é o teto do fluxo automático e o fechamento pertence ao fluxo spec-driven após QA e code review. Enquanto o callback automático não estiver implementado, a transição é feita pelo orquestrador (ou pelo responsável autorizado) e o resultado fica no card.
 
+`tasks.result` no board local e `agent_runs.error` no Supabase são registros paralelos do mesmo ciclo operacional: o primeiro sustenta a execução/curadoria Kanban e o segundo preserva a trilha do runtime versionado. A integração final para o issue Linear pertence ao card Kanban e deve ser registrada no handoff/fechamento autorizado, sem presumir que um campo substitui o outro.
+
 ## Critério de task concluída
 
 ```text
