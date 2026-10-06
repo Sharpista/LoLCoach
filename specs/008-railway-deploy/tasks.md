@@ -97,6 +97,14 @@ T-DOC-* (feito)
 | Deriva pós-review | `9e7d7b4`/`fa03619` (`DatabaseReadinessHealthCheck.cs`), `b6b9a70` (`production.yml`), `0a001d4`/`3b8eef1` (`PostgresConnectionString`, `PlayerDbContextFactory`, `Program.cs`, `GlobalExceptionHandler`) — registrada como L5 em `spec.md`; re-review do delta `f2f9c19..61b49ab` recomendado ao `code-reviewer` |
 | Publicação | Não executada: push, PR, merge, tag, release e deploy continuam pendentes de autorização explícita do usuário |
 
+Nota de atualização (LOL-142, 2026-10-06): o item `production.yml` da linha
+"Deriva pós-review" foi **resolvido** — o arquivo foi removido em `develop` e
+`main` por LOL-134 (PRs #45 e #46). Ver o bullet correspondente do L5 em `spec.md`
+e `docs/ci/2026-10-06-lol-121-guards-e-path-filters.md` §8. O restante da deriva
+(`DatabaseReadinessHealthCheck.cs`, `PostgresConnectionString`,
+`PlayerDbContextFactory`, `Program.cs`, `GlobalExceptionHandler`) permanece como
+registrado.
+
 ## Open Questions
 
 Nenhuma. Ver `spec.md` (decisões do usuário com default adotado e itens fora do escopo).

@@ -3,6 +3,10 @@
 - Card Hermes: `t_bfa23f40` (perfil `github-profile`) · Linear: [LOL-121](https://linear.app/lolcoach/issue/LOL-121/ci-lolcoach-guards-secret-scan-e-revisao-de-path-filters)
 - Base do PR: `develop` · Branch: `chore/LOL-121-ci-guards`
 - Insumo: auditoria [LOL-119](https://linear.app/lolcoach/issue/LOL-119/auditoria-definir-ci-minimo-para-runtimepoller-e-docs) (card `t_5a1658fb`), riscos **R2**, **R4**, **R5** e **R8**.
+- **Nota de estado (LOL-142, 2026-10-06):** o `production.yml` analisado abaixo foi
+  **removido** por LOL-134 (PR #45 em `develop`, PR #46 em `main`, merge em
+  2026-10-06). As seções §1, §2, §4, §5 e §7 descrevem o estado **anterior** à
+  remoção e são preservadas como registro histórico; o desfecho está na §8.
 
 ## Escopo e não-escopo
 
@@ -150,7 +154,8 @@ job). `yamllint`/`gitleaks`/`trufflehog` seguem ausentes (não usados aqui).
 
 1. Revisão/QA desta branch no PR (sem merge nesta task).
 2. Card de `devops` com autorização para tratar `production.yml` (remover ou virar
-   `workflow_dispatch`), conforme a seção 2.
+   `workflow_dispatch`), conforme a seção 2. — **Concluído** em 2026-10-06 por
+   LOL-134 (remoção via PRs #45/#46); ver §8.
 3. Card `t_2bc266bd`: branch protection + required checks em `main`/`develop`
    incluindo `ci-guards` — sem ele, o guard é informativo.
 
@@ -196,3 +201,34 @@ rastreável ao arquivo de checksums publicado pela release), atualizando o pino 
 cada bump de versão. Isso protegeria contra substituição do asset da release —
 mas cria um valor a manter e acopla o passo à arquitetura `linux_amd64`; merece
 card próprio.
+
+## 8. Desfecho — `production.yml` removido (LOL-134 / LOL-142, 2026-10-06)
+
+A Opção 1 da recomendação da §2 ("remover `production.yml`") foi aplicada em card
+de `devops` com autorização explícita: em vez de editar o arquivo, ele foi
+**deletado** em PRs mínimos por base, porque o Actions lê o workflow do ref que
+recebe o push — remover só em `develop` não pararia as execuções disparadas por
+`push` em `main`.
+
+| PR | Base | Branch | Merge | Diff |
+| --- | --- | --- | --- | --- |
+| [#45](https://github.com/Sharpista/LoLCoach/pull/45) | `develop` | `chore/LOL-134-remove-production-yml` | `4bb6eb3` (2026-10-06T18:29:07Z) | 1 arquivo, `D .github/workflows/production.yml`, +0/−41 |
+| [#46](https://github.com/Sharpista/LoLCoach/pull/46) | `main` | `chore/LOL-134-remove-production-yml-main` | `6cd0ec6` (2026-10-06T18:28:18Z) | 1 arquivo, `D .github/workflows/production.yml`, +0/−41 |
+
+O blob removido é idêntico nos dois refs:
+`9a71b5653d6a74f036a7c5bff738ce30788f59ac`.
+
+O que muda nos fatos afirmados acima (o resto do documento permanece como
+registro do estado pré-LOL-134):
+
+| Afirmação acima (estado no momento em que foi escrita) | Estado após a remoção (2026-10-06) |
+| --- | --- |
+| §1 lista **7** workflows, um deles `production.yml` | `develop` e `main` têm **6** workflows: `backend-ci`, `ci-guards`, `deploy`, `frontend-ci`, `migrate`, `python-ci` |
+| §4 e §7 registram "7 workflows, 0 erros, **1 aviso** (`production.yml` push sem `paths`)" | `python3 scripts/ci/validate_workflows.py` → **6 workflows, 0 erros, 0 avisos** (revalidado em `4bb6eb3`, rc 0) |
+| §1/§2 descrevem `production.yml` com `push` em `main` sem `paths`, `environment: production` e secrets injetados em build/test | Os únicos caminhos de produção seguem sendo `deploy.yml` e `migrate.yml`, ambos manuais (`workflow_dispatch`); nenhum workflow roda build/test com secrets de produção |
+| §6.2 "card de `devops` com autorização para tratar `production.yml`" | **Concluído** por LOL-134 (PRs #45/#46) |
+
+Escopo respeitado: nenhum workflow executável, `deploy.yml`, `migrate.yml`,
+secret, environment, ruleset ou runtime foi tocado por LOL-134 além da deleção do
+próprio `production.yml`; esta §8 é apenas documental (LOL-142, PR mínimo de
+docs).
