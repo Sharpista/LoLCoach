@@ -74,8 +74,13 @@ jobs:
           .venv-ci/bin/pip install --quiet --disable-pip-version-check pyyaml
           .venv-ci/bin/python scripts/ci/validate_workflows.py
 
-      # Binario pinado por versao E por commit do script de bootstrap, que
-      # confere o sha256 do tarball antes de instalar (sem curl|bash solto).
+      # Pinagem real deste passo (NAO ha conferencia de checksum):
+      #   - versao 1.7.12, passada como argumento ao script de bootstrap;
+      #   - o script vem de URL por SHA de commit imutavel no repo do
+      #     actionlint (nao de branch/tag) e, por dentro, baixa o tarball da
+      #     release com `curl -L ... | tar xvz`, sem validar sha256.
+      # Integridade = TLS + origem GitHub. Ver LOL-129 e
+      # docs/ci/2026-10-06-lol-121-guards-e-path-filters.md (secao 5, item 3).
       - name: actionlint
         run: |
           bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/914e7df21a07ef503a81201c76d2b11c789d3fca/scripts/download-actionlint.bash) 1.7.12
