@@ -83,8 +83,11 @@ O guard registra o risco como **aviso** para manter o item visível.
 - **shell** — `sh -n` / `bash -n` em todo script de shell do índice
   (interprete escolhido pelo shebang). Hoje: `backend/scripts/verify.sh`.
 - **workflows** — `scripts/ci/validate_workflows.py` (PyYAML `safe_load`) +
-  `actionlint 1.7.12` (bootstrap pinado por **commit**
-  `914e7df21a07ef503a81201c76d2b11c789d3fca`, que confere o sha256 do tarball).
+  `actionlint 1.7.12` (versão passada como argumento ao script de bootstrap, que
+  é baixado de um **commit imutável** do repo do actionlint,
+  `914e7df21a07ef503a81201c76d2b11c789d3fca`). Esse script **não confere
+  checksum**: baixa o tarball da release por HTTPS e descompacta — a integridade
+  do binário depende de TLS e da origem GitHub, não de hash (ver §5.3).
   Políticas: gatilho e `jobs` obrigatórios, `runs-on`/`uses` por job, `run`|`uses`
   por step, `uses` com ref pinada (aviso para `@main`/`@master`/`@HEAD`),
   `ci-guards.yml` sem `paths`, `deploy.yml`/`migrate.yml` sem gatilho `push`.
@@ -105,7 +108,7 @@ dispara deploy/migração.
 | --- | --- | --- |
 | Secret scan no repo | `python3 scripts/ci/secret_scan.py` | `limpo` — 239 arquivos do índice, 9 padrões, 0 achado, nenhum `.env` rastreado (rc 0) |
 | Validator no repo | `python3 scripts/ci/validate_workflows.py` | 7 workflows, **0 erros**, 1 aviso (`production.yml` push sem `paths`) (rc 0) |
-| actionlint (real) | `actionlint -color` 1.7.12 | rc 0 nos 7 workflows (binário verificado por sha256) |
+| actionlint (real) | `actionlint -color` 1.7.12 | rc 0 nos 7 workflows (binário baixado por HTTPS/commit pinado; **sem** conferência de checksum pelo CI — sha256 do tarball medido localmente: `8aca8db9…`, ver §5.3) |
 | actionlint + shellcheck | idem com `shellcheck 0.10.0` no PATH (= runner) | rc 0 |
 | Sintaxe Python | `python3 -m compileall -q scripts/ci` | rc 0 |
 | Sintaxe shell | `sh -n` / `bash -n backend/scripts/verify.sh` | OK |
@@ -128,9 +131,18 @@ job). `yamllint`/`gitleaks`/`trufflehog` seguem ausentes (não usados aqui).
    antigo, já removido, não é detectado — para isso seria preciso
    gitleaks/trufflehog com histórico completo (card futuro; a licença da
    `gitleaks-action` em organização precisa ser confirmada antes).
-3. O bootstrap do actionlint aponta para o **commit** do script de download, mas o
-   script em si vem do GitHub: a cadeia é `commit pinado → script → tarball com
-   sha256 conferido`.
+3. **Integridade do actionlint (claim corrigido em LOL-129).** O bootstrap aponta
+   para o **commit** do script de download, mas o script em si vem do GitHub e
+   **não confere checksum**: o `download-actionlint.bash` pinado baixa o tarball
+   da release com `curl -L "${url}" | tar xvz` (sem `sha256sum`/`shasum` —
+   conferido na fonte em 2026-10-06). A cadeia real é `commit imutável → script
+   (sem hash) → tarball por HTTPS`, e a garantia de integridade é **TLS + origem
+   GitHub**, não hash. Duas ressalvas: o script pinado declara default `1.7.11` e
+   a versão efetiva vem do argumento explícito `1.7.12`; e existe checksum
+   publicado e rastreável na própria release
+   (`actionlint_1.7.12_checksums.txt`, em que o tarball `linux_amd64` confere com
+   `8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8`,
+   verificado localmente com `sha256sum -c`), mas **o CI atual não o usa**.
 4. Guard estático não substitui teste de aplicação: `backend-ci`/`frontend-ci`
    continuam sendo quem prova build e testes.
 
@@ -141,3 +153,46 @@ job). `yamllint`/`gitleaks`/`trufflehog` seguem ausentes (não usados aqui).
    `workflow_dispatch`), conforme a seção 2.
 3. Card `t_2bc266bd`: branch protection + required checks em `main`/`develop`
    incluindo `ci-guards` — sem ele, o guard é informativo.
+
+## 7. Errata — LOL-129 (2026-10-06): claim de sha256 do actionlint
+
+Este documento (e o comentário do passo `actionlint` em `ci-guards.yml`) afirmava
+que o bootstrap "confere o sha256 do tarball antes de instalar". **A afirmação era
+incorreta.** Foi verificado lendo o script pinado
+(`scripts/download-actionlint.bash` no commit
+`914e7df21a07ef503a81201c76d2b11c789d3fca`): ele baixa o tarball da release com
+`curl -L "${url}" | tar xvz`, sem nenhuma checagem de checksum.
+
+Correção aplicada na branch `docs/LOL-129-ci-guards-actionlint-sha256` (PR
+separado, sem merge):
+
+- §3, §4 (linha do actionlint) e §5.3 reescritos para o modelo real de
+  integridade: **TLS + origem GitHub e commit imutável do script**, sem hash;
+- comentário do passo `actionlint` em `.github/workflows/ci-guards.yml`
+  corrigido (não menciona mais sha256 nem "sem curl|bash solto").
+
+Evidências do diagnóstico (2026-10-06, linux/amd64):
+
+| Verificação | Resultado |
+| --- | --- |
+| `curl -sSfL <script no commit pinado>` + `sha256sum` | script sha256 `72fa3e45ac20f3c3a512d6747b4fcf719e21f890e8c43e78d48a41fdfb900c4e`; linha de download real: `curl -L "${url}" \| tar xvz`; nenhuma ocorrência de `sha256sum`/`shasum` |
+| sha256 do `actionlint_1.7.12_linux_amd64.tar.gz` da release | `8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8` (2.353.908 B) |
+| `sha256sum -c` contra `actionlint_1.7.12_checksums.txt` da release | `OK` — o checksum publicado confere com o tarball baixado |
+| Versão do binário baixado | `actionlint 1.7.12` (linux/amd64) |
+
+Validação desta branch (mesmos passos do `ci-guards` executados localmente):
+
+| Verificação | Comando | Resultado |
+| --- | --- | --- |
+| Secret scan | `python3 scripts/ci/secret_scan.py` | `limpo` — 242 arquivos do índice, 9 padrões, 0 achado, nenhum `.env` rastreado (rc 0) |
+| Validator | `python3 scripts/ci/validate_workflows.py` | 7 workflows, **0 erros**, 1 aviso pré-existente (`production.yml`) (rc 0) |
+| actionlint | `actionlint -color` 1.7.12 nos 7 workflows | rc 0, sem saída (YAML do comentário alterado continua válido) |
+| Sintaxe Python | `python3 -m compileall -q scripts/ci` | rc 0 |
+| Sintaxe shell | `bash -n backend/scripts/verify.sh` | OK |
+
+**Follow-up recomendado (não implementado: sairia do "diff mínimo" deste card).**
+Substituir o bootstrap por download direto + `sha256sum -c` do valor acima (que é
+rastreável ao arquivo de checksums publicado pela release), atualizando o pino a
+cada bump de versão. Isso protegeria contra substituição do asset da release —
+mas cria um valor a manter e acopla o passo à arquitetura `linux_amd64`; merece
+card próprio.
