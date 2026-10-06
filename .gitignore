@@ -10,6 +10,10 @@ dist/
 # Node
 node_modules/
 
+# Python (cache de bytecode; scripts de CI e repros)
+__pycache__/
+*.pyc
+
 # Databases
 *.db
 

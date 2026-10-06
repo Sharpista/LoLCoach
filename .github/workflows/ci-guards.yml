@@ -1,0 +1,97 @@
+name: ci-guards
+
+# LOL-121 — guards estáticos (shell / YAML de workflow / secret scan).
+#
+# Por que este workflow NÃO tem filtro `paths` (decisão explícita):
+#   `backend-ci`, `frontend-ci` e `python-ci` só disparam por `backend/**`,
+#   `frontend/**` e `**/*.py`. Sem este guard, um PR que mexe apenas em
+#   `.github/**`, `specs/**` ou `docs/**` produzia ZERO checks — e ausência de
+#   CI nunca é CI verde (auditoria LOL-119, R2). Este é o check sempre-ligado.
+#
+# O que ele faz (tudo estático, read-only, sem segredos e sem rede além do
+# download do binário do actionlint):
+#   1. `sh -n` / `bash -n` em todo script de shell do índice;
+#   2. parser YAML seguro + políticas do repo (scripts/ci/validate_workflows.py);
+#   3. actionlint 1.7.12 sobre `.github/workflows/`;
+#   4. secret scan estático, stdlib, sem ler nada fora do repo
+#      (scripts/ci/secret_scan.py).
+#
+# O que ele NÃO faz: não lê `~/.hermes/shared/.env`, não roda o canário do
+# poller, não executa deploy/migração, não publica imagem, não toca em secrets.
+# Deploy (`deploy.yml`) e migração (`migrate.yml`) seguem manuais.
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shell:
+    name: Sintaxe de shell
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validar scripts de shell
+        run: |
+          set -euo pipefail
+          files=$(git ls-files '*.sh' '*.bash')
+          if [ -z "$files" ]; then
+            echo "nenhum script de shell no indice"
+            exit 0
+          fi
+          count=0
+          while IFS= read -r script; do
+            [ -n "$script" ] || continue
+            if head -n 1 "$script" | grep -q bash; then
+              bash -n "$script"
+              echo "bash -n OK: $script"
+            else
+              sh -n "$script"
+              echo "sh -n OK: $script"
+            fi
+            count=$((count + 1))
+          done <<< "$files"
+          echo "scripts de shell validados: $count"
+
+  workflows:
+    name: Workflows (YAML e lint)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validar YAML e politicas dos workflows
+        run: |
+          python3 -m venv .venv-ci
+          .venv-ci/bin/pip install --quiet --disable-pip-version-check pyyaml
+          .venv-ci/bin/python scripts/ci/validate_workflows.py
+
+      # Binario pinado por versao E por commit do script de bootstrap, que
+      # confere o sha256 do tarball antes de instalar (sem curl|bash solto).
+      - name: actionlint
+        run: |
+          bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/914e7df21a07ef503a81201c76d2b11c789d3fca/scripts/download-actionlint.bash) 1.7.12
+          ./actionlint -color
+
+  secrets:
+    name: Secret scan estatico
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # O scan varre a arvore do commit, nao o historico (ver limitacoes
+          # registradas no doc do card LOL-121). Historico completo e candidato
+          # a gitleaks/trufflehog em card futuro.
+          fetch-depth: 1
+
+      - name: Padroes de credencial (stdlib, sem rede)
+        run: python3 scripts/ci/secret_scan.py
